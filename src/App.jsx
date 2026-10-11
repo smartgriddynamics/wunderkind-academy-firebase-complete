@@ -107,7 +107,7 @@ function Navbar() {
   }, [])
   return <header className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${scrolled ? 'bg-white/95 shadow-sm backdrop-blur-xl' : 'bg-white/90 backdrop-blur-md'}`}>
     <div className="container-wide flex h-[82px] items-center justify-between gap-5">
-      <a href="#home" className="flex shrink-0 items-center" aria-label="Wunderkind Academy home"><SchoolMark className="h-16 w-16 object-contain sm:h-[72px] sm:w-[72px]" /></a>
+      <a href="#home" className="flex min-w-0 shrink-0 items-center gap-2.5" aria-label="Wunderkind Academy home"><SchoolMark className="h-16 w-16 object-contain sm:h-[72px] sm:w-[72px]" /><span className="font-serif text-base font-semibold leading-tight text-academy-deep sm:text-lg">Wunderkind<br />Academy</span></a>
       <nav className="hidden items-center gap-6 xl:flex" aria-label="Main navigation">{navLinks.map(([label, href]) => <a key={href} href={href} className="text-[13px] font-medium text-slate-600 transition hover:text-amber-700">{label}</a>)}</nav>
       <div className="hidden xl:block"><a href="#admissions" className="inline-flex items-center gap-2 rounded-full bg-academy-deep px-5 py-3 text-sm font-semibold text-white transition hover:bg-academy-navy">Apply Now <ArrowUpRight size={16} /></a></div>
       <button className="rounded-lg p-2 text-academy-deep xl:hidden" onClick={() => setOpen(!open)} aria-label={open ? 'Close menu' : 'Open menu'} aria-expanded={open}>{open ? <X size={25} /> : <Menu size={25} />}</button>
