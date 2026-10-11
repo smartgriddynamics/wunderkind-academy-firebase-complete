@@ -1,0 +1,42 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.active == true;
+    }
+    match /admins/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+    match /applications/{id} {
+      allow create: if request.auth == null &&
+        request.resource.data.keys().hasOnly(['id','submittedAt','status','studentName','dateOfBirth','gender','applyingFor','previousSchool','guardianName','guardianRelationship','guardianPhone','guardianEmail','address','notes']) &&
+        request.resource.data.status == 'Pending' &&
+        request.resource.data.studentName is string &&
+        request.resource.data.studentName.size() > 0 &&
+        request.resource.data.studentName.size() <= 150 &&
+        request.resource.data.guardianName is string &&
+        request.resource.data.guardianName.size() > 0 &&
+        request.resource.data.guardianEmail is string &&
+        request.resource.data.guardianPhone is string &&
+        request.resource.data.submittedAt == request.time;
+      allow read, update, delete: if isAdmin();
+    }
+    match /messages/{id} {
+      allow create: if request.auth == null &&
+        request.resource.data.keys().hasOnly(['name','email','subject','message','createdAt']) &&
+        request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 150 &&
+        request.resource.data.email is string && request.resource.data.email.size() <= 200 &&
+        request.resource.data.subject is string && request.resource.data.subject.size() <= 200 &&
+        request.resource.data.message is string && request.resource.data.message.size() > 0 && request.resource.data.message.size() <= 5000 &&
+        request.resource.data.createdAt == request.time;
+      allow read, update, delete: if isAdmin();
+    }
+    match /{kind}/{id} {
+      allow read: if kind in ['news','events'] && (resource.data.published == true || isAdmin());
+      allow create, update, delete: if kind in ['news','events'] && isAdmin();
+    }
+  }
+}
