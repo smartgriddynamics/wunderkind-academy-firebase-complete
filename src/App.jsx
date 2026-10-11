@@ -25,7 +25,7 @@ const photos = {
   hero: `${siteBase}images/students-learning.jpg`,
   about: `${siteBase}images/classroom.jpg`,
   early: `${siteBase}images/early-years.jpg`,
-  primary: `${siteBase}images/classroom.jpg`,
+  primary: `${siteBase}images/class7.jpg`,
   stem: `${siteBase}images/stem-lab.jpg`,
   arts: `${siteBase}images/arts-sports.jpg`,
   science: `${siteBase}images/stem-lab.jpg`,
