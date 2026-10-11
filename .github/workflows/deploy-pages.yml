@@ -29,8 +29,8 @@ jobs:
         run: npm ci
       - name: Build site
         run: npm run build
-      - name: Support client-side routes
-        run: cp dist/index.html dist/404.html && touch dist/.nojekyll
+      - name: Support client-side routes and preserve custom domain
+        run: cp dist/index.html dist/404.html && cp CNAME dist/CNAME && touch dist/.nojekyll
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:

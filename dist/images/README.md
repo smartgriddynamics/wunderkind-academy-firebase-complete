@@ -1,18 +1,13 @@
 # School website images
 
-Put school-approved image files in this folder, for example:
-- school-building.jpg
-- students-learning.jpg
-- early-years.jpg
-- primary-classroom.jpg
-- stem-lab.jpg
-- arts-sports.jpg
-- science-lab.jpg
-- computer-lab.jpg
-- library.jpg
-- playground.jpg
-- smart-classroom.jpg
-- art-music-room.jpg
+Approved photos belong in this folder. The currently supplied files are:
+- `art-music-room.jpg`
+- `arts-sports.jpg`
+- `classroom.jpg`
+- `computer-lab.jpg`
+- `early-years.jpg`
+- `school-building.jpg`
+- `stem-lab.jpg`
+- `students-learning.jpg`
 
-Then update the image paths in `src/App.jsx` to `/images/your-file-name.jpg`.
-Files in `public` are served from the website root, so use `/images/filename.jpg` in React.
+The website reuses the available classroom, STEM, and school-building photos for sections without a dedicated image. To add dedicated photos, put them here and update the corresponding paths in `src/App.jsx`. Vite serves `public` files from the site root, so paths should start with `/images/`.
