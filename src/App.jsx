@@ -189,7 +189,7 @@ function Admissions() {
         <label className="text-xs font-semibold text-slate-700">Parent / guardian full name *<input required name="guardianName" className="form-field mt-2" placeholder="Full name"/></label>
         <label className="text-xs font-semibold text-slate-700">Relationship to student *<select required name="guardianRelationship" defaultValue="" className="form-field mt-2"><option value="" disabled>Select</option><option>Mother</option><option>Father</option><option>Guardian</option><option>Other</option></select></label>
         <label className="text-xs font-semibold text-slate-700">Phone number *<input required name="guardianPhone" type="tel" className="form-field mt-2" placeholder="+255..."/></label>
-        <label className="text-xs font-semibold text-slate-700">Email address *<input required name="guardianEmail" type="email" className="form-field mt-2" name="email" placeholder="you@example.com"/></label>
+        <label className="text-xs font-semibold text-slate-700">Email address *<input required name="guardianEmail" type="email" className="form-field mt-2" placeholder="you@example.com"/></label>
         <label className="text-xs font-semibold text-slate-700 sm:col-span-2">Home address / area *<input required name="address" className="form-field mt-2" placeholder="Ward, street, or area"/></label>
         <label className="text-xs font-semibold text-slate-700 sm:col-span-2">Additional information<textarea name="notes" rows="3" className="form-field mt-2 resize-y" placeholder="Anything the admissions team should know?"/></label>
         {error&&<p role="alert" className="sm:col-span-2 rounded-lg bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}
