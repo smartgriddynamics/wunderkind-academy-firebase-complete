@@ -10,19 +10,48 @@ service cloud.firestore {
       allow read: if request.auth != null && request.auth.uid == uid;
       allow write: if false;
     }
+    match /applicantAccounts/{uid} {
+      allow create: if request.auth != null &&
+        request.auth.uid == uid &&
+        request.resource.data.keys().hasOnly(['uid','email','createdAt']) &&
+        request.resource.data.uid == uid &&
+        request.resource.data.email == request.auth.token.email &&
+        request.resource.data.createdAt == request.time;
+      allow read: if isAdmin() || (request.auth != null && request.auth.uid == uid);
+      allow update, delete: if false;
+    }
     match /applications/{id} {
-      allow create: if request.auth == null &&
-        request.resource.data.keys().hasOnly(['id','submittedAt','status','studentName','dateOfBirth','gender','applyingFor','previousSchool','guardianName','guardianRelationship','guardianPhone','guardianEmail','address','notes']) &&
+      allow create: if request.auth != null &&
+        request.resource.data.keys().hasOnly([
+          'id','ownerUid','accountEmail','submittedAt','status','studentName','formDate','nickname',
+          'dateOfBirth','gender','nationality','birthPlace','address','staysWith','birthCertificateAttached',
+          'previousSchool','religion','allergies','congenitalIllness','otherChildInformation','applyingFor',
+          'mother','father','otherContact','guardianName','guardianRelationship','guardianPhone','guardianEmail'
+        ]) &&
+        request.resource.data.keys().hasAll([
+          'id','ownerUid','accountEmail','submittedAt','status','studentName','formDate','nickname',
+          'dateOfBirth','gender','nationality','birthPlace','address','staysWith','birthCertificateAttached',
+          'previousSchool','religion','allergies','congenitalIllness','otherChildInformation','applyingFor',
+          'mother','father','otherContact','guardianName','guardianRelationship','guardianPhone','guardianEmail'
+        ]) &&
+        request.resource.data.ownerUid == request.auth.uid &&
+        request.resource.data.accountEmail == request.auth.token.email &&
         request.resource.data.status == 'Pending' &&
         request.resource.data.studentName is string &&
         request.resource.data.studentName.size() > 0 &&
         request.resource.data.studentName.size() <= 150 &&
         request.resource.data.guardianName is string &&
-        request.resource.data.guardianName.size() > 0 &&
         request.resource.data.guardianEmail is string &&
         request.resource.data.guardianPhone is string &&
-        request.resource.data.submittedAt == request.time;
-      allow read, update, delete: if isAdmin();
+        request.resource.data.submittedAt == request.time &&
+        request.resource.data.mother is map &&
+        request.resource.data.mother.keys().hasOnly(['name','phone','work','nida']) &&
+        request.resource.data.father is map &&
+        request.resource.data.father.keys().hasOnly(['name','phone','work','nida']) &&
+        request.resource.data.otherContact is map &&
+        request.resource.data.otherContact.keys().hasOnly(['name','phone','address','nida']);
+      allow read: if isAdmin() || (request.auth != null && resource.data.ownerUid == request.auth.uid);
+      allow update, delete: if isAdmin();
     }
     match /messages/{id} {
       allow create: if request.auth == null &&
