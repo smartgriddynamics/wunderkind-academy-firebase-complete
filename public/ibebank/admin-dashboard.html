@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+  <title>IBE Bank · Admin Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    :root{--primary:#1a3a5c;--primary-light:#2a5a8c;--primary-dark:#0f2842;--accent:#c9a23d;--accent-light:#e0c06c;--accent-dark:#a07f2a;--success:#10b981;--danger:#ef4444;--warning:#f59e0b;--agent:#0891b2;--dark:#1e1e2e;--light:#f8fafc;--white:#ffffff;--gray:#6b7280;--gray-light:#e5e7eb;--sidebar-width:260px;--transition:all 0.3s cubic-bezier(0.25,0.46,0.45,0.94);}
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:'Inter',sans-serif;background:#f0f2f5;color:#1a1a1a;min-height:100vh;display:flex;}
+    .sidebar{width:var(--sidebar-width);background:linear-gradient(180deg,#1a1f2e 0%,#151a26 100%);color:white;position:fixed;height:100vh;overflow-y:auto;transition:var(--transition);z-index:100;display:flex;flex-direction:column;}
+    .sidebar-header{padding:28px 24px;border-bottom:1px solid rgba(255,255,255,0.08);text-align:center;}
+    .sidebar-logo{display:flex;align-items:center;justify-content:center;gap:12px;}
+    .sidebar-logo-icon{width:42px;height:42px;background:linear-gradient(135deg,var(--accent),var(--accent-light));border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.1rem;color:var(--dark);}
+    .sidebar-logo-text{font-size:1.4rem;font-weight:700;color:white;letter-spacing:-0.02em;}
+    .sidebar-logo-text span{color:var(--accent);}
+    .sidebar-user{padding:20px 24px;display:flex;align-items:center;gap:14px;border-bottom:1px solid rgba(255,255,255,0.08);}
+    .sidebar-avatar{width:44px;height:44px;background:linear-gradient(135deg,var(--primary-light),var(--accent));border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:1rem;flex-shrink:0;}
+    .sidebar-user-info h4{font-size:0.9rem;font-weight:600;color:white;margin-bottom:2px;}
+    .sidebar-user-info p{font-size:0.75rem;color:rgba(255,255,255,0.5);}
+    .sidebar-nav{padding:16px 12px;flex:1;}
+    .nav-section{margin-bottom:8px;}
+    .nav-section-label{font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em;color:rgba(255,255,255,0.3);padding:8px 16px 8px;}
+    .nav-item{display:flex;align-items:center;gap:12px;padding:12px 16px;color:rgba(255,255,255,0.65);border-radius:10px;margin-bottom:2px;transition:var(--transition);cursor:pointer;border:none;background:none;width:100%;font-size:0.88rem;font-weight:500;text-align:left;}
+    .nav-item i{width:22px;font-size:1.1rem;text-align:center;}
+    .nav-item:hover{background:rgba(255,255,255,0.08);color:white;}
+    .nav-item.active{background:var(--primary);color:white;box-shadow:0 4px 12px rgba(26,58,92,0.4);}
+    .nav-badge{margin-left:auto;background:var(--danger);color:white;font-size:0.65rem;padding:3px 8px;border-radius:20px;font-weight:600;}
+    .sidebar-footer{padding:16px 12px;border-top:1px solid rgba(255,255,255,0.08);}
+    .logout-nav-item{display:flex;align-items:center;gap:12px;padding:12px 16px;color:rgba(255,255,255,0.5);border-radius:10px;transition:var(--transition);cursor:pointer;border:none;background:none;width:100%;font-size:0.88rem;font-weight:500;text-align:left;}
+    .logout-nav-item:hover{background:rgba(239,68,68,0.2);color:var(--danger);}
+    .main-content{flex:1;margin-left:var(--sidebar-width);padding:24px;min-height:100vh;}
+    .page-title{font-size:1.6rem;font-weight:700;color:var(--dark);margin-bottom:28px;}
+    .content-section{display:none;}
+    .content-section.active{display:block;}
+    .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;margin-bottom:28px;}
+    .stat-card{background:white;border-radius:18px;padding:24px;box-shadow:0 2px 10px rgba(0,0,0,0.04);transition:transform 0.2s;}
+    .stat-card:hover{transform:translateY(-3px);box-shadow:0 8px 25px rgba(0,0,0,0.08);}
+    .stat-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;margin-bottom:16px;}
+    .stat-icon.blue{background:#dbeafe;color:var(--primary);}
+    .stat-icon.green{background:#d1fae5;color:var(--success);}
+    .stat-icon.red{background:#fee2e2;color:var(--danger);}
+    .stat-icon.gold{background:#fef3c7;color:var(--accent);}
+    .stat-icon.agent{background:#cffafe;color:var(--agent);}
+    .stat-icon.purple{background:#e0e7ff;color:#8b5cf6;}
+    .stat-icon.teal{background:#ccfbf1;color:#0d9488;}
+    .stat-value{font-size:1.8rem;font-weight:700;color:var(--dark);}
+    .stat-label{color:var(--gray);font-size:0.85rem;margin-top:4px;}
+    .dashboard-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:28px;}
+    .card{background:white;border-radius:18px;padding:24px;box-shadow:0 2px 10px rgba(0,0,0,0.04);}
+    .card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
+    .card-title{font-size:1.1rem;font-weight:600;color:var(--dark);}
+    .chart-container{position:relative;height:300px;}
+    .table-card{background:white;border-radius:18px;padding:24px;box-shadow:0 2px 10px rgba(0,0,0,0.04);overflow-x:auto;margin-bottom:28px;}
+    .table-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px;}
+    .search-box{display:flex;align-items:center;gap:10px;background:#f3f4f6;padding:10px 16px;border-radius:10px;}
+    .search-box i{color:#9ca3af;}
+    .search-box input{border:none;background:none;outline:none;font-size:0.9rem;width:200px;}
+    table{width:100%;border-collapse:collapse;}
+    th{text-align:left;padding:12px;color:var(--gray);font-weight:500;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.03em;border-bottom:2px solid var(--gray-light);}
+    td{padding:14px 12px;border-bottom:1px solid #f3f4f6;font-size:0.9rem;}
+    tr:hover{background:#f8fafc;}
+    .user-cell{display:flex;align-items:center;gap:12px;}
+    .user-avatar{width:40px;height:40px;background:linear-gradient(135deg,var(--primary),var(--accent));border-radius:10px;display:flex;align-items:center;justify-content:center;color:white;font-weight:600;font-size:0.85rem;}
+    .balance{font-weight:600;color:var(--success);}
+    .status-badge{padding:4px 10px;border-radius:20px;font-size:0.7rem;font-weight:600;}
+    .status-active{background:#d1fae5;color:#065f46;}
+    .status-pending{background:#fef3c7;color:#92400e;}
+    .status-overdue{background:#fee2e2;color:#991b1b;}
+    .action-buttons{display:flex;gap:8px;}
+    .btn-icon{background:none;border:none;padding:8px;border-radius:8px;cursor:pointer;color:var(--gray);transition:all 0.2s;}
+    .btn-icon:hover{background:#f3f4f6;color:var(--primary);}
+    .btn-icon.danger:hover{background:#fee2e2;color:var(--danger);}
+    .btn{padding:10px 22px;border-radius:10px;font-weight:600;cursor:pointer;transition:all 0.2s;border:none;font-size:0.9rem;display:inline-flex;align-items:center;gap:8px;}
+    .btn-primary{background:var(--primary);color:white;}
+    .btn-primary:hover{background:var(--primary-dark);}
+    .btn-accent{background:var(--accent);color:var(--dark);}
+    .btn-danger{background:var(--danger);color:white;}
+    .btn-success{background:var(--success);color:white;}
+    .btn-sm{padding:8px 16px;font-size:0.8rem;}
+    .requests-list{display:flex;flex-direction:column;gap:12px;}
+    .request-card{background:#f9fafb;border-radius:12px;padding:20px;border:1px solid var(--gray-light);}
+    .request-header{display:flex;justify-content:space-between;margin-bottom:12px;}
+    .request-user{font-weight:600;}
+    .request-amount{font-weight:700;color:var(--primary);}
+    .request-actions{display:flex;gap:8px;margin-top:12px;}
+    .btn-approve{background:var(--success);color:white;padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-size:0.85rem;}
+    .btn-reject{background:var(--danger);color:white;padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-size:0.85rem;}
+    .interest-settings{background:white;border-radius:18px;padding:24px;box-shadow:0 2px 10px rgba(0,0,0,0.04);margin-bottom:28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:15px;}
+    .toggle-switch{position:relative;width:60px;height:30px;}
+    .toggle-input{opacity:0;width:0;height:0;}
+    .toggle-label{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background-color:#cbd5e1;transition:.3s;border-radius:30px;}
+    .toggle-label:before{position:absolute;content:"";height:24px;width:24px;left:3px;bottom:3px;background-color:white;transition:.3s;border-radius:50%;}
+    .toggle-input:checked+.toggle-label{background:var(--primary);}
+    .toggle-input:checked+.toggle-label:before{transform:translateX(30px);}
+    .loan-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:15px;margin-bottom:20px;}
+    .loan-stat{background:#f8fafc;border-radius:12px;padding:15px;text-align:center;}
+    .loan-stat .value{font-size:1.5rem;font-weight:700;}
+    .loan-stat .label{color:#64748b;font-size:0.8rem;}
+    .profit-distribution-card{background:linear-gradient(135deg,var(--accent),var(--accent-light));border-radius:18px;padding:24px;margin-bottom:28px;color:var(--dark);}
+    .profit-distribution-card h3{margin-bottom:10px;}
+    .profit-distribution-card .btn{background:var(--primary);color:white;margin-top:15px;}
+    .modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center;}
+    .modal{background:white;border-radius:20px;padding:32px;max-width:500px;width:90%;max-height:90vh;overflow-y:auto;}
+    .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;}
+    .modal-title{font-size:1.3rem;font-weight:700;}
+    .modal-close{background:none;border:none;font-size:1.5rem;cursor:pointer;color:var(--gray);}
+    .form-group{margin-bottom:20px;}
+    .form-label{display:block;margin-bottom:8px;font-weight:500;color:var(--dark);font-size:0.9rem;}
+    .form-input,.form-select{width:100%;padding:12px 16px;border:2px solid var(--gray-light);border-radius:10px;font-size:0.95rem;}
+    .form-input:focus,.form-select:focus{outline:none;border-color:var(--primary);}
+    .modal-actions{display:flex;gap:12px;justify-content:flex-end;margin-top:24px;}
+    .filter-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center;}
+    .filter-bar select,.filter-bar input{padding:8px 12px;border:2px solid var(--gray-light);border-radius:8px;font-size:0.85rem;}
+    .filter-bar select:focus,.filter-bar input:focus{outline:none;border-color:var(--primary);}
+    .menu-toggle{display:none;position:fixed;top:20px;left:20px;z-index:200;width:42px;height:42px;border-radius:12px;background:var(--primary);color:white;border:none;cursor:pointer;font-size:1.2rem;}
+    @media(max-width:1024px){.dashboard-grid{grid-template-columns:1fr;}}
+    @media(max-width:768px){.sidebar{transform:translateX(-100%);}.sidebar.mobile-open{transform:translateX(0);}.main-content{margin-left:0;}.menu-toggle{display:flex;align-items:center;justify-content:center;}.stats-grid{grid-template-columns:1fr 1fr;}.loan-summary{grid-template-columns:repeat(2,1fr);}}
+    @media(max-width:480px){.stats-grid{grid-template-columns:1fr;}}
+  </style>
+</head>
+<body>
+  <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header"><div class="sidebar-logo"><div class="sidebar-logo-icon">IBE</div><div class="sidebar-logo-text"><span>IBE</span> Bank</div></div></div>
+    <div class="sidebar-user"><div class="sidebar-avatar" id="sidebarInitials">AD</div><div class="sidebar-user-info"><h4 id="sidebarName">Admin</h4><p id="sidebarEmail">admin@ibebank.com</p></div></div>
+    <div class="sidebar-nav">
+      <div class="nav-section"><div class="nav-section-label">Main</div><button class="nav-item active" data-section="dashboard"><i class="fas fa-chart-pie"></i> Dashboard</button></div>
+      <div class="nav-section"><div class="nav-section-label">Management</div>
+        <button class="nav-item" data-section="users"><i class="fas fa-users"></i> Users</button>
+        <button class="nav-item" data-section="registrations"><i class="fas fa-user-clock"></i> Registrations<span class="nav-badge" id="registrationCount">0</span></button>
+        <button class="nav-item" data-section="agents"><i class="fas fa-store"></i> Agents<span class="nav-badge" id="agentRequestCount">0</span></button>
+        <button class="nav-item" data-section="agent-balance-requests"><i class="fas fa-money-bill-wave"></i> Agent Requests<span class="nav-badge" id="agentBalanceRequestCount">0</span></button>
+        <button class="nav-item" data-section="requests"><i class="fas fa-clock"></i> Requests<span class="nav-badge" id="requestCount">0</span></button>
+        <button class="nav-item" data-section="loans"><i class="fas fa-hand-holding-usd"></i> Loans<span class="nav-badge" id="loanRequestCount">0</span></button>
+      </div>
+      <div class="nav-section"><div class="nav-section-label">Reports</div><button class="nav-item" data-section="analytics"><i class="fas fa-chart-line"></i> Analytics</button><button class="nav-item" data-section="transactions"><i class="fas fa-list-alt"></i> Transactions</button></div>
+      <div class="nav-section"><div class="nav-section-label">Settings</div><button class="nav-item" data-section="settings"><i class="fas fa-cog"></i> Settings</button></div>
+    </div>
+    <div class="sidebar-footer"><button class="logout-nav-item" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</button></div>
+  </div>
+
+  <div class="main-content">
+    <h1 class="page-title" id="pageTitle">Dashboard</h1>
+    
+    <!-- DASHBOARD -->
+    <div class="content-section active" id="dashboard-section">
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-icon blue"><i class="fas fa-wallet"></i></div><div class="stat-value" id="totalDeposits">TSh 0</div><div class="stat-label">Total Deposits</div></div>
+        <div class="stat-card"><div class="stat-icon teal"><i class="fas fa-piggy-bank"></i></div><div class="stat-value" id="availableBalance">TSh 0</div><div class="stat-label">Available Balance</div></div>
+        <div class="stat-card"><div class="stat-icon green"><i class="fas fa-users"></i></div><div class="stat-value" id="totalUsers">0</div><div class="stat-label">Total Users</div></div>
+        <div class="stat-card"><div class="stat-icon red"><i class="fas fa-hand-holding-usd"></i></div><div class="stat-value" id="totalLoans">TSh 0</div><div class="stat-label">Active Loans</div></div>
+        <div class="stat-card"><div class="stat-icon agent"><i class="fas fa-store"></i></div><div class="stat-value" id="totalAgents">0</div><div class="stat-label">Active Agents</div></div>
+        <div class="stat-card"><div class="stat-icon gold"><i class="fas fa-gift"></i></div><div class="stat-value" id="totalProfitShared">TSh 0</div><div class="stat-label">Profit Shared</div></div>
+        <div class="stat-card"><div class="stat-icon purple"><i class="fas fa-percent"></i></div><div class="stat-value" id="loanInterestDisplay">10%</div><div class="stat-label">Loan Interest</div></div>
+      </div>
+      <div class="profit-distribution-card"><h3><i class="fas fa-gift"></i> Distribute Profits</h3><p>Available: <strong id="availableForLoans">TSh 0</strong> | Interest: <strong>10%/month</strong></p><button class="btn" id="distributeProfitsBtn"><i class="fas fa-share"></i> Distribute Now</button></div>
+      <div class="interest-settings"><div><h3><i class="fas fa-cog"></i> Settings</h3><p>Profit sharing active | Loan interest: 10% per month</p></div><div class="toggle-switch"><input type="checkbox" id="autoInterestToggle" class="toggle-input" checked><label for="autoInterestToggle" class="toggle-label"></label></div></div>
+    </div>
+
+    <!-- USERS -->
+    <div class="content-section" id="users-section"><div class="table-card"><div class="table-header"><h3>Users</h3><div style="display:flex;gap:10px;"><div class="search-box"><i class="fas fa-search"></i><input type="text" id="userSearch" placeholder="Search..."></div><button class="btn btn-primary" id="addUserBtn"><i class="fas fa-plus"></i> Add</button></div></div><table><thead><tr><th>User</th><th>Account #</th><th>Balance</th><th>Loan Debt</th><th>Pool %</th><th>Actions</th></tr></thead><tbody id="usersTableBody"></tbody></table></div></div>
+    
+    <!-- REGISTRATIONS -->
+    <div class="content-section" id="registrations-section"><div class="table-card"><div class="table-header"><h3>Pending Registrations</h3></div><div id="registrationsList" class="requests-list"></div></div></div>
+    
+    <!-- AGENTS -->
+    <div class="content-section" id="agents-section"><div class="table-card"><div class="table-header"><h3>Pending Agents</h3></div><div id="pendingAgentsList" class="requests-list"></div></div><div class="table-card" style="margin-top:20px;"><div class="table-header"><h3>Active Agents</h3></div><table><thead><tr><th>Agent</th><th>Account #</th><th>Balance</th><th>Actions</th></tr></thead><tbody id="agentsTableBody"></tbody></table></div></div>
+    
+    <!-- AGENT BALANCE REQUESTS -->
+    <div class="content-section" id="agent-balance-requests-section"><div class="table-card"><div class="table-header"><h3>Agent Balance Requests</h3></div><div id="agentBalanceRequestsList" class="requests-list"></div></div></div>
+    
+    <!-- REQUESTS -->
+    <div class="content-section" id="requests-section"><div class="table-card"><div class="table-header"><h3>Pending Requests</h3></div><div id="requestsList" class="requests-list"></div></div></div>
+    
+    <!-- LOANS -->
+    <div class="content-section" id="loans-section"><div class="loan-summary"><div class="loan-stat"><div class="value" id="activeLoansCount">0</div><div class="label">Active</div></div><div class="loan-stat"><div class="value" id="pendingLoansCount">0</div><div class="label">Pending</div></div><div class="loan-stat"><div class="value" id="overdueLoansCount">0</div><div class="label">Overdue</div></div><div class="loan-stat"><div class="value" id="totalLoanAmount">TSh 0</div><div class="label">Total Lent</div></div></div><div class="table-card"><div class="table-header"><h3>Loan Requests (10%/month)</h3></div><div id="loanRequestsList" class="requests-list"></div></div><div class="table-card" style="margin-top:20px;"><div class="table-header"><h3>Active Loans</h3></div><table><thead><tr><th>User</th><th>Amount</th><th>Remaining</th><th>Due Date</th><th>Status</th><th>Actions</th></tr></thead><tbody id="activeLoansBody"></tbody></table></div></div>
+    
+    <!-- ANALYTICS -->
+    <div class="content-section" id="analytics-section">
+      <div class="table-card">
+        <div class="table-header"><h3>User Analytics</h3><button class="btn btn-accent btn-sm" id="downloadAnalyticsPDFBtn"><i class="fas fa-download"></i> Download PDF</button></div>
+        <select id="userSelect" class="form-select" style="margin-bottom:20px;"><option value="">Select a user</option></select>
+        <div id="userAnalytics" style="display:none;">
+          <div class="stats-grid">
+            <div class="stat-card"><div class="stat-icon blue"><i class="fas fa-hashtag"></i></div><div class="stat-value" id="analyticsAccountNumber" style="font-size:1.3rem;">---</div><div class="stat-label">Account Number</div></div>
+            <div class="stat-card"><div class="stat-icon green"><i class="fas fa-wallet"></i></div><div class="stat-value" id="analyticsBalance">TSh 0</div><div class="stat-label">Balance</div></div>
+            <div class="stat-card"><div class="stat-icon gold"><i class="fas fa-chart-pie"></i></div><div class="stat-value" id="analyticsPoolShare">0%</div><div class="stat-label">Pool Share</div></div>
+            <div class="stat-card"><div class="stat-icon red"><i class="fas fa-hand-holding-usd"></i></div><div class="stat-value" id="analyticsLoanDebt">TSh 0</div><div class="stat-label">Loan Debt</div></div>
+          </div>
+          <div class="dashboard-grid" style="margin-top:20px;">
+            <div class="card"><div class="card-header"><h3 class="card-title">Balance History</h3></div><div class="chart-container" style="height:250px;"><canvas id="userBalanceHistoryChart"></canvas></div></div>
+            <div class="card"><div class="card-header"><h3 class="card-title">Transaction Breakdown</h3></div><div class="chart-container" style="height:250px;"><canvas id="userTransactionChart"></canvas></div></div>
+          </div>
+          <h4 style="margin:20px 0 12px;">Recent Transactions</h4>
+          <div class="filter-bar">
+            <select id="analyticsTransType" onchange="filterAnalyticsTransactions()">
+              <option value="all">All Types</option>
+              <option value="transfer_sent">Sent</option><option value="transfer_received">Received</option>
+              <option value="deposit">Deposit</option><option value="withdrawal">Withdrawal</option>
+              <option value="payroll_sent">Payroll</option><option value="payroll_received">Salary</option>
+              <option value="profit_share">Profit</option><option value="loan_disbursement">Loan</option>
+              <option value="loan_repayment">Repayment</option>
+            </select>
+            <select id="analyticsTransMonth" onchange="filterAnalyticsTransactions()">
+              <option value="all">All Months</option>
+              <option value="0">Jan</option><option value="1">Feb</option><option value="2">Mar</option><option value="3">Apr</option><option value="4">May</option><option value="5">Jun</option><option value="6">Jul</option><option value="7">Aug</option><option value="8">Sep</option><option value="9">Oct</option><option value="10">Nov</option><option value="11">Dec</option>
+            </select>
+            <select id="analyticsTransYear" onchange="filterAnalyticsTransactions()"><option value="all">All Years</option></select>
+            <button class="btn btn-sm btn-primary" onclick="clearAnalyticsFilters()"><i class="fas fa-times"></i> Clear</button>
+          </div>
+          <table><thead><tr><th>Date</th><th>Type</th><th>Details</th><th>Amount</th></tr></thead><tbody id="userTransactionsBody"></tbody></table>
+          <p style="text-align:center;color:var(--gray);margin-top:8px;" id="analyticsTransCount">0 transactions</p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- TRANSACTIONS -->
+    <div class="content-section" id="transactions-section">
+      <div class="table-card">
+        <div class="table-header"><h3>All Transactions</h3><button class="btn btn-accent btn-sm" id="downloadAllTransactionsPDFBtn"><i class="fas fa-download"></i> Download PDF</button></div>
+        <div class="filter-bar">
+          <select id="allTransType" onchange="filterAllTransactions()">
+            <option value="all">All Types</option>
+            <option value="deposit">Deposit</option><option value="withdrawal">Withdrawal</option>
+            <option value="transfer_sent">Transfer Sent</option><option value="transfer_received">Transfer Received</option>
+            <option value="agent_deposit">Agent Deposit</option><option value="agent_transfer_out">Agent Transfer</option>
+            <option value="payroll_sent">Payroll</option><option value="payroll_received">Salary</option>
+            <option value="profit_share">Profit Share</option><option value="loan_disbursement">Loan</option><option value="loan_repayment">Repayment</option>
+            <option value="loan_auto_deduct">Auto-Deduct</option>
+          </select>
+          <select id="allTransMonth" onchange="filterAllTransactions()">
+            <option value="all">All Months</option>
+            <option value="0">Jan</option><option value="1">Feb</option><option value="2">Mar</option><option value="3">Apr</option><option value="4">May</option><option value="5">Jun</option><option value="6">Jul</option><option value="7">Aug</option><option value="8">Sep</option><option value="9">Oct</option><option value="10">Nov</option><option value="11">Dec</option>
+          </select>
+          <select id="allTransYear" onchange="filterAllTransactions()"><option value="all">All Years</option></select>
+          <button class="btn btn-sm btn-primary" onclick="clearAllTransFilters()"><i class="fas fa-times"></i> Clear</button>
+        </div>
+        <table><thead><tr><th>Date</th><th>User</th><th>Type</th><th>Details</th><th>Amount</th></tr></thead><tbody id="allTransactionsBody"></tbody></table>
+        <p style="text-align:center;color:var(--gray);margin-top:8px;" id="allTransCount">0 transactions</p>
+      </div>
+    </div>
+    
+    <!-- SETTINGS -->
+    <div class="content-section" id="settings-section"><div class="table-card"><h3 style="margin-bottom:20px;">Settings</h3><div class="form-group"><label class="form-label">Loan Interest Rate (%)</label><input type="number" id="loanInterestRate" class="form-input" value="10" step="1"></div><div class="form-group"><label class="form-label">Low Balance Warning (TSh)</label><input type="number" id="lowBalanceThreshold" class="form-input" value="1000000"></div><button class="btn btn-primary" id="saveSettingsBtn">Save</button></div></div>
+  </div>
+
+  <!-- MODALS -->
+  <div class="modal-overlay" id="addUserModal"><div class="modal"><div class="modal-header"><h3 class="modal-title">Add User</h3><button class="modal-close" onclick="closeModal('addUserModal')">&times;</button></div><div class="form-group"><label class="form-label">Name</label><input type="text" id="newUserName" class="form-input"></div><div class="form-group"><label class="form-label">Email</label><input type="email" id="newUserEmail" class="form-input"></div><div class="form-group"><label class="form-label">Password</label><input type="password" id="newUserPassword" class="form-input" value="client123"></div><div class="form-group"><label class="form-label">Initial Deposit</label><input type="number" id="newUserBalance" class="form-input" value="0"></div><div class="modal-actions"><button class="btn btn-primary" id="createUserBtn">Create</button><button class="btn" style="background:#f3f4f6;" onclick="closeModal('addUserModal')">Cancel</button></div></div></div>
+  <div class="modal-overlay" id="transactionModal"><div class="modal"><div class="modal-header"><h3 class="modal-title" id="transactionModalTitle">Deposit</h3><button class="modal-close" onclick="closeModal('transactionModal')">&times;</button></div><div class="form-group"><label class="form-label">User</label><input type="text" id="transactionUser" class="form-input" readonly></div><div class="form-group"><label class="form-label">Amount</label><input type="number" id="transactionAmount" class="form-input"></div><div class="modal-actions"><button class="btn btn-primary" id="confirmTransactionBtn">Confirm</button><button class="btn" style="background:#f3f4f6;" onclick="closeModal('transactionModal')">Cancel</button></div></div></div>
+  <div class="modal-overlay" id="loanPaymentModal"><div class="modal"><div class="modal-header"><h3 class="modal-title">Record Payment</h3><button class="modal-close" onclick="closeModal('loanPaymentModal')">&times;</button></div><div class="form-group"><label class="form-label">User</label><input type="text" id="loanPaymentUser" class="form-input" readonly></div><div class="form-group"><label class="form-label">Amount</label><input type="number" id="loanPaymentAmount" class="form-input"></div><div class="modal-actions"><button class="btn btn-primary" id="confirmLoanPaymentBtn">Record</button><button class="btn" style="background:#f3f4f6;" onclick="closeModal('loanPaymentModal')">Cancel</button></div></div></div>
+  <div class="modal-overlay" id="agentDepositModal"><div class="modal"><div class="modal-header"><h3 class="modal-title">Deposit to Agent</h3><button class="modal-close" onclick="closeModal('agentDepositModal')">&times;</button></div><div class="form-group"><label class="form-label">Agent</label><input type="text" id="agentDepositUser" class="form-input" readonly></div><div class="form-group"><label class="form-label">Amount</label><input type="number" id="agentDepositAmount" class="form-input"></div><div class="modal-actions"><button class="btn btn-primary" id="confirmAgentDepositBtn">Deposit</button><button class="btn" style="background:#f3f4f6;" onclick="closeModal('agentDepositModal')">Cancel</button></div></div></div>
+
+<script type="module">
+import{initializeApp}from"https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import{getAuth,signOut,onAuthStateChanged,createUserWithEmailAndPassword}from"https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import{getFirestore,collection,doc,setDoc,getDocs,updateDoc,deleteDoc,onSnapshot,query,orderBy,where,getDoc}from"https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+const firebaseConfig={apiKey:"AIzaSyCifzsvcufqs-HOg_KDOzkUYoxsHhlTfN8",authDomain:"minibank-b76d6.firebaseapp.com",projectId:"minibank-b76d6",storageBucket:"minibank-b76d6.firebasestorage.app",messagingSenderId:"1076277480681",appId:"1:1076277480681:web:38592a2bd360ab7e7db478"};
+const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
+let currentUser=null,users=[],transactions=[],requests=[],loanRequests=[],activeLoans=[],pendingRegistrations=[],agents=[],pendingAgents=[],charts={},userAnalyticsChart=null,userTransactionChart=null,currentTransactionType='deposit',selectedUser=null,selectedLoan=null,selectedAgent=null;
+let analyticsUserData=null,analyticsTransactions=[];
+
+const formatMoney=(val)=>'TSh '+new Intl.NumberFormat('en-TZ').format(Math.round(val||0));
+function generateAccountNumber(uid){if(!uid)return'---';let n='';for(let i=0;i<uid.length;i++){if(uid[i]>='0'&&uid[i]<='9')n+=uid[i];}while(n.length<10)n+='0';return n.substring(0,10);}
+
+function getTypeLabel(t){switch(t){case'transfer_sent':return'Sent';case'transfer_received':return'Received';case'agent_deposit':return'Agent Dep';case'agent_transfer_out':return'Agent Sent';case'agent_deposit_received':return'Agent Rec';case'payroll_sent':return'Payroll';case'payroll_received':return'Salary';case'profit_share':return'Profit';case'loan_disbursement':return'Loan';case'loan_repayment':return'Repay';case'loan_auto_deduct':return'Auto-Ded';case'deposit':return'Deposit';case'withdrawal':return'Withdraw';default:return t.replace(/_/g,' ');}}
+
+// Populate year dropdowns
+const now=new Date();
+['analyticsTransYear','allTransYear'].forEach(id=>{
+  const s=document.getElementById(id);if(s)for(let y=now.getFullYear();y>=2024;y--){const o=document.createElement('option');o.value=y;o.textContent=y;s.appendChild(o);}
+});
+
+onAuthStateChanged(auth,async(user)=>{if(!user){window.location.replace('index.html');return;}const ad=await getDoc(doc(db,"admins",user.uid));if(!ad.exists()){await signOut(auth);window.location.replace('index.html');return;}currentUser=user;document.getElementById('sidebarName').textContent=ad.data().name||'Admin';document.getElementById('sidebarEmail').textContent=user.email;document.getElementById('sidebarInitials').textContent=(ad.data().name||'AD').substring(0,2).toUpperCase();loadSettings();initRealtimeData();});
+document.querySelectorAll('.nav-item').forEach(item=>{item.addEventListener('click',()=>{document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));item.classList.add('active');document.querySelectorAll('.content-section').forEach(s=>s.classList.remove('active'));document.getElementById(`${item.dataset.section}-section`).classList.add('active');document.getElementById('pageTitle').textContent=item.textContent.replace(/\d+/,'').trim();if(window.innerWidth<=768)document.getElementById('sidebar').classList.remove('mobile-open');});});
+document.getElementById('menuToggle').addEventListener('click',()=>document.getElementById('sidebar').classList.toggle('mobile-open'));
+document.getElementById('logoutBtn').addEventListener('click',async()=>{await signOut(auth);window.location.replace('index.html');});
+async function loadSettings(){const s=await getDoc(doc(db,"settings","interest"));if(s.exists()){const d=s.data();document.getElementById('loanInterestRate').value=d.loanRate||10;document.getElementById('lowBalanceThreshold').value=d.lowBalanceThreshold||1000000;}}
+document.getElementById('saveSettingsBtn').addEventListener('click',async()=>{const lr=parseFloat(document.getElementById('loanInterestRate').value)||10,th=parseFloat(document.getElementById('lowBalanceThreshold').value)||1000000;await updateDoc(doc(db,"settings","interest"),{loanRate:lr,lowBalanceThreshold:th});document.getElementById('loanInterestDisplay').textContent=lr+'%';alert('Saved!');});
+
+function initRealtimeData(){
+  onSnapshot(collection(db,"users"),(snap)=>{users=[];snap.forEach(d=>users.push({id:d.id,...d.data()}));updateDashboard();renderUsersTable();populateUserSelect();});
+  const tq=query(collection(db,"transactions"),orderBy("timestamp","desc"));onSnapshot(tq,(snap)=>{transactions=[];snap.forEach(d=>transactions.push({id:d.id,...d.data()}));updateTransactionsDisplay();updateDashboard();filterAllTransactions();});
+  const rq=query(collection(db,"requests"),where("status","==","pending"));onSnapshot(rq,(snap)=>{requests=[];snap.forEach(d=>requests.push({id:d.id,...d.data()}));document.getElementById('requestCount').textContent=requests.length;renderRequests();});
+  const lrq=query(collection(db,"loanRequests"),where("status","==","pending"));onSnapshot(lrq,(snap)=>{loanRequests=[];snap.forEach(d=>loanRequests.push({id:d.id,...d.data()}));loanRequests.sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));document.getElementById('loanRequestCount').textContent=loanRequests.length;renderLoanRequests();});
+  const alq=query(collection(db,"loans"),where("status","in",["active","overdue"]));onSnapshot(alq,(snap)=>{activeLoans=[];snap.forEach(d=>{activeLoans.push({id:d.id,...d.data()});});renderActiveLoans();updateLoanStats();updateDashboard();renderUsersTable();});
+  const regQ=query(collection(db,"pendingRegistrations"),where("status","==","pending"));onSnapshot(regQ,(snap)=>{pendingRegistrations=[];snap.forEach(d=>pendingRegistrations.push({id:d.id,...d.data()}));document.getElementById('registrationCount').textContent=pendingRegistrations.length;renderRegistrations();});
+  const agentsQ=query(collection(db,"agents"),where("status","==","active"));onSnapshot(agentsQ,(snap)=>{agents=[];snap.forEach(d=>agents.push({id:d.id,...d.data()}));renderAgents();updateAgentStats();});
+  const pendingAgentsQ=query(collection(db,"pendingAgents"),where("status","==","pending"));onSnapshot(pendingAgentsQ,(snap)=>{pendingAgents=[];snap.forEach(d=>pendingAgents.push({id:d.id,...d.data()}));document.getElementById('agentRequestCount').textContent=pendingAgents.length;renderPendingAgents();});
+  const abrQ=query(collection(db,"balanceRequests"),where("status","==","pending"));onSnapshot(abrQ,(snap)=>{const br=[];snap.forEach(d=>br.push({id:d.id,...d.data()}));br.sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));document.getElementById('agentBalanceRequestCount').textContent=br.length;renderAgentBalanceRequests(br);});
+}
+
+function renderAgentBalanceRequests(reqs){const c=document.getElementById('agentBalanceRequestsList');if(!c)return;if(reqs.length===0){c.innerHTML='<p style="text-align:center;color:var(--gray);padding:40px;">No pending</p>';return;}c.innerHTML=reqs.map(r=>`<div class="request-card"><div class="request-header"><span class="request-user"><strong>${r.agentName||'Agent'}</strong>${r.businessName?` (${r.businessName})`:''}</span><span class="request-amount">${formatMoney(r.amount)}</span></div><p><span style="color:var(--gray);">📧 ${r.agentEmail}</span>${r.agentAccount?` <span style="color:var(--gray);">🔢 ${r.agentAccount}</span>`:''}</p>${r.reason?`<p style="color:var(--gray);">📝 ${r.reason}</p>`:''}<p style="font-size:0.8rem;color:var(--gray);">📅 ${new Date(r.timestamp).toLocaleString()}</p><div class="request-actions"><button class="btn-approve" onclick="approveAgentBalanceRequest('${r.id}')"><i class="fas fa-check"></i> Approve</button><button class="btn-reject" onclick="rejectAgentBalanceRequest('${r.id}')"><i class="fas fa-times"></i> Decline</button></div></div>`).join('');}
+window.approveAgentBalanceRequest=async(id)=>{try{const rd=await getDoc(doc(db,"balanceRequests",id));if(!rd.exists())return alert('Not found');const r=rd.data();const ad=await getDoc(doc(db,"agents",r.agentId));if(!ad.exists())return alert('Agent not found');const a=ad.data();const td=users.reduce((s,u)=>s+(u.balance||0),0);const tl=activeLoans.filter(l=>l.status==='active').reduce((s,l)=>s+(l.remainingAmount||l.amount),0);if(td-tl<r.amount)return alert(`Insufficient funds! Available: ${formatMoney(td-tl)}`);await updateDoc(doc(db,"agents",r.agentId),{balance:(a.balance||0)+r.amount});await updateDoc(doc(db,"balanceRequests",id),{status:'approved',approvedAt:new Date().toISOString(),adminNote:'Approved'});await setDoc(doc(collection(db,"transactions")),{userEmail:r.agentEmail,userName:r.agentName,type:'agent_deposit',amount:r.amount,note:r.reason||'Balance request',timestamp:new Date().toISOString()});alert(`✅ Approved! Sent ${formatMoney(r.amount)} to ${r.agentName}`);}catch(e){alert('❌ '+e.message);}};
+window.rejectAgentBalanceRequest=async(id)=>{const reason=prompt('Reason (optional):');await updateDoc(doc(db,"balanceRequests",id),{status:'declined',declinedAt:new Date().toISOString(),adminNote:reason||'Declined'});alert('Declined');};
+
+function updateDashboard(){const td=users.reduce((s,u)=>s+(u.balance||0),0),tla=activeLoans.filter(l=>l.status==='active').reduce((s,l)=>s+(l.remainingAmount||l.amount),0),av=td-tla,ps=transactions.filter(t=>t.type==='profit_share').reduce((s,t)=>s+t.amount,0);document.getElementById('totalDeposits').textContent=formatMoney(td);document.getElementById('availableBalance').textContent=formatMoney(av);document.getElementById('totalUsers').textContent=users.length;document.getElementById('totalLoans').textContent=formatMoney(tla);document.getElementById('totalAgents').textContent=agents.length;document.getElementById('totalProfitShared').textContent=formatMoney(ps);document.getElementById('availableForLoans').textContent=formatMoney(av);getDoc(doc(db,"settings","interest")).then(s=>{document.getElementById('loanInterestDisplay').textContent=(s.exists()?(s.data().loanRate||10):10)+'%';});}
+function updateAgentStats(){document.getElementById('totalAgents').textContent=agents.length;}
+function updateLoanStats(){document.getElementById('activeLoansCount').textContent=activeLoans.filter(l=>l.status==='active').length;document.getElementById('pendingLoansCount').textContent=loanRequests.length;document.getElementById('overdueLoansCount').textContent=activeLoans.filter(l=>l.status==='overdue').length;document.getElementById('totalLoanAmount').textContent=formatMoney(activeLoans.reduce((s,l)=>s+(l.remainingAmount||l.amount),0));}
+
+function renderUsersTable(){const s=document.getElementById('userSearch')?.value.toLowerCase()||'',f=users.filter(u=>u.name?.toLowerCase().includes(s)||u.email?.toLowerCase().includes(s)),td=users.reduce((s,u)=>s+(u.balance||0),0),tb=document.getElementById('usersTableBody');if(!tb)return;tb.innerHTML=f.map(u=>{const debt=activeLoans.filter(l=>l.userEmail?.toLowerCase()===u.email?.toLowerCase()&&(l.status==='active'||l.status==='overdue')).reduce((s,l)=>s+(l.remainingAmount||l.amount),0),pp=td>0?((u.balance||0)/td*100).toFixed(2):0,acc=u.accountNumber||generateAccountNumber(u.id);return`<tr><td><div class="user-cell"><div class="user-avatar">${(u.name||'U').substring(0,2).toUpperCase()}</div><div><h4>${u.name||'N/A'}</h4><p>${u.email}</p></div></div></td><td>${acc}</td><td class="balance">${formatMoney(u.balance||0)}</td><td style="color:${debt>0?'var(--danger)':'var(--success)'};font-weight:600;">${formatMoney(debt)}</td><td>${pp}%</td><td><div class="action-buttons"><button class="btn-icon" onclick="handleDeposit('${u.email}')"><i class="fas fa-plus"></i></button><button class="btn-icon" onclick="handleWithdraw('${u.email}')"><i class="fas fa-minus"></i></button><button class="btn-icon danger" onclick="deleteUser('${u.id}','${u.name}')"><i class="fas fa-trash"></i></button></div></td></tr>`;}).join('');}
+function renderRegistrations(){const c=document.getElementById('registrationsList');if(pendingRegistrations.length===0){c.innerHTML='<p style="text-align:center;color:var(--gray);padding:40px;">No pending</p>';return;}c.innerHTML=pendingRegistrations.map(r=>`<div class="request-card"><div class="request-header"><span class="request-user">${r.name} (${r.email})</span><span class="request-amount">Initial: ${formatMoney(r.initialBalance||0)}</span></div><p>${new Date(r.createdAt).toLocaleString()}</p><div class="request-actions"><button class="btn-approve" onclick="approveRegistration('${r.id}')">Approve</button><button class="btn-reject" onclick="rejectRegistration('${r.id}')">Reject</button></div></div>`).join('');}
+function renderPendingAgents(){const c=document.getElementById('pendingAgentsList');if(pendingAgents.length===0){c.innerHTML='<p style="text-align:center;color:var(--gray);padding:40px;">No pending</p>';return;}c.innerHTML=pendingAgents.map(a=>`<div class="request-card"><div class="request-header"><span class="request-user">${a.name} (${a.email})</span><span>${a.businessName||'Agent'}</span></div><p>📍 ${a.location||'N/A'} | 📞 ${a.phone||'N/A'}</p><div class="request-actions"><button class="btn-approve" onclick="approveAgent('${a.id}')">Approve</button><button class="btn-reject" onclick="rejectAgent('${a.id}')">Reject</button></div></div>`).join('');}
+function renderAgents(){const tb=document.getElementById('agentsTableBody');if(agents.length===0){tb.innerHTML='<tr><td colspan="4" style="text-align:center;padding:40px;">No agents</td></tr>';return;}tb.innerHTML=agents.map(a=>`<tr><td><div class="user-cell"><div class="user-avatar">${(a.name||'A').substring(0,2).toUpperCase()}</div><div><h4>${a.name}</h4><p>${a.email}</p></div></div></td><td>${a.accountNumber}</td><td class="balance">${formatMoney(a.balance||0)}</td><td><div class="action-buttons"><button class="btn-icon" onclick="depositToAgent('${a.id}')"><i class="fas fa-plus"></i></button><button class="btn-icon danger" onclick="deleteAgent('${a.id}','${a.name}')"><i class="fas fa-trash"></i></button></div></td></tr>`).join('');}
+function renderRequests(){const c=document.getElementById('requestsList');if(requests.length===0){c.innerHTML='<p style="text-align:center;color:var(--gray);padding:40px;">No pending</p>';return;}c.innerHTML=requests.map(r=>`<div class="request-card"><div class="request-header"><span class="request-user">${r.userName} (${r.userEmail})</span><span class="request-amount">${formatMoney(r.amount)}</span></div><p>${r.type==='deposit'?'Deposit':'Withdrawal'} Request</p><div class="request-actions"><button class="btn-approve" onclick="approveRequest('${r.id}')">Approve</button><button class="btn-reject" onclick="rejectRequest('${r.id}')">Reject</button></div></div>`).join('');}
+function renderLoanRequests(){const c=document.getElementById('loanRequestsList');if(loanRequests.length===0){c.innerHTML='<p style="text-align:center;color:var(--gray);padding:40px;">No pending</p>';return;}c.innerHTML=loanRequests.map(r=>{const rate=r.interestRate||(r.duration/30)*0.10,interest=r.interestAmount||(r.amount*rate),total=r.totalRepayment||(r.amount+interest);return`<div class="request-card"><div class="request-header"><span class="request-user">${r.userName} (${r.userEmail})</span><span class="request-amount">${formatMoney(r.amount)}</span></div><p>Duration: ${r.duration} days | Interest: ${(rate*100).toFixed(0)}% (${formatMoney(interest)})</p><p><strong>Total: ${formatMoney(total)}</strong></p><div class="request-actions"><button class="btn-approve" onclick="approveLoanRequest('${r.id}')">Approve</button><button class="btn-reject" onclick="rejectLoanRequest('${r.id}')">Reject</button></div></div>`;}).join('');}
+function renderActiveLoans(){const tb=document.getElementById('activeLoansBody'),a=activeLoans.filter(l=>l.status==='active'||l.status==='overdue');if(a.length===0){tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:40px;">No active loans</td></tr>';return;}tb.innerHTML=a.map(l=>{const due=new Date(l.dueDate),ov=l.status==='overdue'||(l.status==='active'&&new Date()>due);return`<tr><td><div class="user-cell"><div class="user-avatar">${(l.userName||'U').substring(0,2).toUpperCase()}</div><div><h4>${l.userName}</h4><p>${l.userEmail}</p></div></div></td><td>${formatMoney(l.amount)}</td><td>${formatMoney(l.remainingAmount||l.amount)}</td><td>${due.toLocaleDateString()}</td><td><span class="status-badge ${ov?'status-overdue':'status-active'}">${ov?'OVERDUE':'Active'}</span></td><td><button class="btn-icon" onclick="recordLoanPayment('${l.id}')"><i class="fas fa-money-bill"></i></button></td></tr>`;}).join('');}
+
+// ============ ALL TRANSACTIONS FILTERS ============
+window.filterAllTransactions=function(){
+  let f=[...transactions];
+  const type=document.getElementById('allTransType')?.value||'all';
+  const month=document.getElementById('allTransMonth')?.value;
+  const year=document.getElementById('allTransYear')?.value;
+  if(type!=='all')f=f.filter(t=>t.type===type);
+  if(month!=='all')f=f.filter(t=>new Date(t.timestamp).getMonth()===parseInt(month));
+  if(year!=='all')f=f.filter(t=>new Date(t.timestamp).getFullYear()===parseInt(year));
+  const tb=document.getElementById('allTransactionsBody');
+  if(tb)tb.innerHTML=f.slice(0,200).map(t=>`<tr><td>${new Date(t.timestamp).toLocaleDateString()}</td><td>${t.userName||t.userEmail||'—'}</td><td>${getTypeLabel(t.type)}</td><td>${t.description||t.note||'—'}</td><td style="font-weight:600;color:${t.type==='withdrawal'||t.type==='transfer_sent'||t.type==='agent_transfer_out'||t.type==='payroll_sent'||t.type==='loan_repayment'||t.type==='loan_auto_deduct'?'var(--danger)':'var(--success)'};">${(t.type==='withdrawal'||t.type==='transfer_sent'||t.type==='agent_transfer_out'||t.type==='payroll_sent'||t.type==='loan_repayment'||t.type==='loan_auto_deduct'?'-':'+')}${formatMoney(t.amount)}</td></tr>`).join('')||'<tr><td colspan="5" style="text-align:center;padding:20px;">No transactions</td></tr>';
+  document.getElementById('allTransCount').textContent=f.length+' transactions';
+};
+window.clearAllTransFilters=function(){document.getElementById('allTransType').value='all';document.getElementById('allTransMonth').value='all';document.getElementById('allTransYear').value='all';filterAllTransactions();};
+
+// Download ALL transactions PDF
+document.getElementById('downloadAllTransactionsPDFBtn').addEventListener('click',()=>{
+  let f=[...transactions];
+  const type=document.getElementById('allTransType')?.value||'all';
+  const month=document.getElementById('allTransMonth')?.value;
+  const year=document.getElementById('allTransYear')?.value;
+  if(type!=='all')f=f.filter(t=>t.type===type);
+  if(month!=='all')f=f.filter(t=>new Date(t.timestamp).getMonth()===parseInt(month));
+  if(year!=='all')f=f.filter(t=>new Date(t.timestamp).getFullYear()===parseInt(year));
+  const{jsPDF}=window.jspdf;const doc=new jsPDF();
+  doc.setFontSize(16);doc.text('IBE Bank - All Transactions Report',14,20);
+  doc.setFontSize(10);doc.text(`Generated: ${new Date().toLocaleString()} | Total: ${f.length} transactions`,14,28);
+  doc.autoTable({startY:34,head:[['Date','User','Type','Details','Amount']],body:f.slice(0,500).map(t=>[new Date(t.timestamp).toLocaleDateString(),t.userName||t.userEmail||'—',getTypeLabel(t.type),t.description||t.note||'—',(t.type==='withdrawal'||t.type==='transfer_sent'||t.type==='agent_transfer_out'||t.type==='payroll_sent'||t.type==='loan_repayment'||t.type==='loan_auto_deduct'?'-':'+')+formatMoney(t.amount)]),theme:'striped',headStyles:{fillColor:[26,58,92]}});
+  doc.save(`IBE_All_Transactions_${new Date().toISOString().split('T')[0]}.pdf`);
+});
+
+function updateTransactionsDisplay(){document.getElementById('allTransactionsBody').innerHTML=transactions.slice(0,50).map(t=>`<tr><td>${new Date(t.timestamp).toLocaleDateString()}</td><td>${t.userName||t.userEmail}</td><td>${getTypeLabel(t.type)}</td><td>${t.description||t.note||'—'}</td><td style="font-weight:600;">${formatMoney(t.amount)}</td></tr>`).join('');filterAllTransactions();}
+
+// ============ ANALYTICS ============
+function populateUserSelect(){const s=document.getElementById('userSelect');if(s)s.innerHTML='<option value="">Select a user</option>'+users.map(u=>`<option value="${u.id}">${u.name} (${u.email})</option>`).join('');}
+document.getElementById('userSelect').addEventListener('change',(e)=>{const uid=e.target.value;if(uid)loadUserAnalytics(uid);else document.getElementById('userAnalytics').style.display='none';});
+
+function loadUserAnalytics(uid){
+  const user=users.find(u=>u.id===uid);if(!user)return;
+  analyticsUserData=user;
+  analyticsTransactions=transactions.filter(t=>t.userEmail===user.email);
+  const debt=activeLoans.filter(l=>l.userEmail?.toLowerCase()===user.email?.toLowerCase()&&(l.status==='active'||l.status==='overdue')).reduce((s,l)=>s+(l.remainingAmount||l.amount),0);
+  const td=users.reduce((s,u)=>s+(u.balance||0),0),ps=td>0?((user.balance||0)/td*100).toFixed(2):0;
+  document.getElementById('analyticsAccountNumber').textContent=user.accountNumber||'---';
+  document.getElementById('analyticsBalance').textContent=formatMoney(user.balance||0);
+  document.getElementById('analyticsPoolShare').textContent=ps+'%';
+  document.getElementById('analyticsLoanDebt').textContent=formatMoney(debt);
+  
+  const ctx1=document.getElementById('userBalanceHistoryChart').getContext('2d');if(userAnalyticsChart)userAnalyticsChart.destroy();
+  const days=Array.from({length:30},(_,i)=>{const d=new Date();d.setDate(d.getDate()-(29-i));return d.toLocaleDateString();});
+  userAnalyticsChart=new Chart(ctx1,{type:'line',data:{labels:days,datasets:[{data:days.map(()=>user.balance||0),borderColor:'#1a3a5c',backgroundColor:'rgba(26,58,92,0.08)',tension:0.4,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}});
+  
+  const ctx2=document.getElementById('userTransactionChart').getContext('2d');if(userTransactionChart)userTransactionChart.destroy();
+  const dep=analyticsTransactions.filter(t=>t.type==='deposit'||t.type==='transfer_received'||t.type==='agent_deposit_received').reduce((s,t)=>s+t.amount,0);
+  const wit=analyticsTransactions.filter(t=>t.type==='withdrawal'||t.type==='transfer_sent'||t.type==='loan_repayment'||t.type==='loan_auto_deduct'||t.type==='payroll_sent').reduce((s,t)=>s+t.amount,0);
+  const prof=analyticsTransactions.filter(t=>t.type==='profit_share').reduce((s,t)=>s+t.amount,0);
+  userTransactionChart=new Chart(ctx2,{type:'doughnut',data:{labels:['Deposits/Received','Withdrawals/Sent','Profit Share'],datasets:[{data:[dep,wit,prof],backgroundColor:['#10b981','#ef4444','#c9a23d']}]},options:{responsive:true,maintainAspectRatio:false}});
+  
+  filterAnalyticsTransactions();
+  document.getElementById('userAnalytics').style.display='block';
+}
+
+window.filterAnalyticsTransactions=function(){
+  let f=[...analyticsTransactions];
+  const type=document.getElementById('analyticsTransType')?.value||'all';
+  const month=document.getElementById('analyticsTransMonth')?.value;
+  const year=document.getElementById('analyticsTransYear')?.value;
+  if(type!=='all')f=f.filter(t=>t.type===type);
+  if(month!=='all')f=f.filter(t=>new Date(t.timestamp).getMonth()===parseInt(month));
+  if(year!=='all')f=f.filter(t=>new Date(t.timestamp).getFullYear()===parseInt(year));
+  const tb=document.getElementById('userTransactionsBody');
+  if(tb)tb.innerHTML=f.map(t=>{const isOut=t.type==='withdrawal'||t.type==='transfer_sent'||t.type==='loan_repayment'||t.type==='loan_auto_deduct'||t.type==='payroll_sent';const sign=isOut?'-':'+';const color=isOut?'var(--danger)':'var(--success)';return`<tr><td>${new Date(t.timestamp).toLocaleDateString()}</td><td>${getTypeLabel(t.type)}</td><td>${t.description||t.note||'—'}</td><td style="color:${color};font-weight:600;">${sign}${formatMoney(t.amount)}</td></tr>`;}).join('')||'<tr><td colspan="4" style="text-align:center;padding:20px;">No transactions</td></tr>';
+  document.getElementById('analyticsTransCount').textContent=f.length+' transactions';
+};
+window.clearAnalyticsFilters=function(){document.getElementById('analyticsTransType').value='all';document.getElementById('analyticsTransMonth').value='all';document.getElementById('analyticsTransYear').value='all';filterAnalyticsTransactions();};
+
+// Download Analytics PDF
+document.getElementById('downloadAnalyticsPDFBtn').addEventListener('click',()=>{
+  if(!analyticsUserData)return alert('Select a user first');
+  let f=[...analyticsTransactions];
+  const type=document.getElementById('analyticsTransType')?.value||'all';
+  const month=document.getElementById('analyticsTransMonth')?.value;
+  const year=document.getElementById('analyticsTransYear')?.value;
+  if(type!=='all')f=f.filter(t=>t.type===type);
+  if(month!=='all')f=f.filter(t=>new Date(t.timestamp).getMonth()===parseInt(month));
+  if(year!=='all')f=f.filter(t=>new Date(t.timestamp).getFullYear()===parseInt(year));
+  const debt=activeLoans.filter(l=>l.userEmail?.toLowerCase()===analyticsUserData.email?.toLowerCase()&&(l.status==='active'||l.status==='overdue')).reduce((s,l)=>s+(l.remainingAmount||l.amount),0);
+  const{jsPDF}=window.jspdf;const doc=new jsPDF();
+  doc.setFontSize(16);doc.text('IBE Bank - User Analytics Report',14,20);
+  doc.setFontSize(10);
+  doc.text(`User: ${analyticsUserData.name} | Account: ${analyticsUserData.accountNumber||'---'} | Email: ${analyticsUserData.email}`,14,28);
+  doc.text(`Balance: ${formatMoney(analyticsUserData.balance||0)} | Loan Debt: ${formatMoney(debt)} | Generated: ${new Date().toLocaleString()}`,14,34);
+  doc.autoTable({startY:40,head:[['Date','Type','Details','Amount']],body:f.map(t=>{const isOut=t.type==='withdrawal'||t.type==='transfer_sent'||t.type==='loan_repayment'||t.type==='loan_auto_deduct'||t.type==='payroll_sent';return[new Date(t.timestamp).toLocaleDateString(),getTypeLabel(t.type),t.description||t.note||'—',(isOut?'-':'+')+formatMoney(t.amount)];}),theme:'striped',headStyles:{fillColor:[26,58,92]}});
+  doc.save(`IBE_Analytics_${analyticsUserData.name?.replace(/\s/g,'_')}_${new Date().toISOString().split('T')[0]}.pdf`);
+});
+
+// User Management
+document.getElementById('createUserBtn').addEventListener('click',async()=>{const n=document.getElementById('newUserName').value.trim(),e=document.getElementById('newUserEmail').value.trim().toLowerCase(),p=document.getElementById('newUserPassword').value,b=parseFloat(document.getElementById('newUserBalance').value)||0;if(!n||!e||!p)return alert('All fields required');try{const uc=await createUserWithEmailAndPassword(auth,e,p),acc=generateAccountNumber(uc.user.uid);await setDoc(doc(db,"users",uc.user.uid),{name:n,email:e,balance:b,accountNumber:acc,createdAt:new Date().toISOString(),uid:uc.user.uid});closeModal('addUserModal');document.getElementById('newUserName').value=document.getElementById('newUserEmail').value='';document.getElementById('newUserBalance').value='0';alert('Created!');}catch(ex){alert(ex.code==='auth/email-already-in-use'?'Email exists':ex.message);}});
+window.handleDeposit=(email)=>{const u=users.find(x=>x.email===email);if(!u)return;selectedUser=u;currentTransactionType='deposit';document.getElementById('transactionModalTitle').textContent='Deposit';document.getElementById('transactionUser').value=`${u.name} (${u.email})`;openModal('transactionModal');};
+window.handleWithdraw=(email)=>{const u=users.find(x=>x.email===email);if(!u)return;selectedUser=u;currentTransactionType='withdraw';document.getElementById('transactionModalTitle').textContent='Withdraw';document.getElementById('transactionUser').value=`${u.name} (${u.email})`;openModal('transactionModal');};
+window.deleteUser=async(id,n)=>{if(!confirm(`Delete ${n}?`))return;await deleteDoc(doc(db,"users",id));};
+document.getElementById('confirmTransactionBtn').addEventListener('click',async()=>{const a=parseFloat(document.getElementById('transactionAmount').value);if(!a||a<=0)return alert('Invalid');const nb=currentTransactionType==='deposit'?selectedUser.balance+a:selectedUser.balance-a;if(nb<0)return alert('Insufficient');await updateDoc(doc(db,"users",selectedUser.id),{balance:nb});await setDoc(doc(collection(db,"transactions")),{userEmail:selectedUser.email,userName:selectedUser.name,type:currentTransactionType,amount:a,timestamp:new Date().toISOString()});closeModal('transactionModal');document.getElementById('transactionAmount').value='';});
+window.approveRegistration=async(id)=>{const r=pendingRegistrations.find(x=>x.id===id);if(!r)return;const acc=generateAccountNumber(id);await setDoc(doc(db,"users",id),{name:r.name,email:r.email,balance:r.initialBalance||0,accountNumber:acc,createdAt:new Date().toISOString(),uid:id});await updateDoc(doc(db,"pendingRegistrations",id),{status:'approved'});alert('Approved!');};
+window.rejectRegistration=async(id)=>{await updateDoc(doc(db,"pendingRegistrations",id),{status:'rejected'});};
+window.approveAgent=async(id)=>{const a=pendingAgents.find(x=>x.id===id);if(!a)return;const acc=generateAccountNumber(id);await setDoc(doc(db,"agents",id),{name:a.name,email:a.email,phone:a.phone,businessName:a.businessName,location:a.location,balance:0,accountNumber:acc,status:'active',createdAt:new Date().toISOString()});await updateDoc(doc(db,"pendingAgents",id),{status:'approved'});alert('Agent approved!');};
+window.rejectAgent=async(id)=>{await updateDoc(doc(db,"pendingAgents",id),{status:'rejected'});};
+window.depositToAgent=(id)=>{selectedAgent=agents.find(a=>a.id===id);if(!selectedAgent)return;document.getElementById('agentDepositUser').value=`${selectedAgent.name} (${selectedAgent.accountNumber})`;document.getElementById('agentDepositAmount').value='';openModal('agentDepositModal');};
+window.deleteAgent=async(id,n)=>{if(!confirm(`Delete ${n}?`))return;await deleteDoc(doc(db,"agents",id));};
+document.getElementById('confirmAgentDepositBtn').addEventListener('click',async()=>{const a=parseFloat(document.getElementById('agentDepositAmount').value);if(!a||a<=0)return alert('Invalid');await updateDoc(doc(db,"agents",selectedAgent.id),{balance:(selectedAgent.balance||0)+a});await setDoc(doc(collection(db,"transactions")),{userEmail:selectedAgent.email,userName:selectedAgent.name,type:'agent_deposit',amount:a,timestamp:new Date().toISOString()});closeModal('agentDepositModal');alert('Deposited!');});
+window.approveRequest=async(id)=>{const r=requests.find(x=>x.id===id);if(!r)return;const u=users.find(x=>x.email===r.userEmail);if(!u)return;const nb=r.type==='deposit'?u.balance+r.amount:u.balance-r.amount;if(nb<0)return alert('Insufficient');await updateDoc(doc(db,"users",u.id),{balance:nb});await updateDoc(doc(db,"requests",id),{status:'approved'});await setDoc(doc(collection(db,"transactions")),{userEmail:u.email,userName:u.name,type:r.type,amount:r.amount,timestamp:new Date().toISOString()});};
+window.rejectRequest=async(id)=>{await updateDoc(doc(db,"requests",id),{status:'rejected'});};
+window.approveLoanRequest=async(id)=>{const r=loanRequests.find(x=>x.id===id);if(!r)return;const u=users.find(x=>x.email===r.userEmail);if(!u)return;const due=new Date();due.setDate(due.getDate()+r.duration);const rate=r.interestRate||(r.duration/30)*0.10,interest=r.interestAmount||(r.amount*rate),total=r.totalRepayment||(r.amount+interest);const td=users.reduce((s,u)=>s+(u.balance||0),0),tl=activeLoans.filter(l=>l.status==='active').reduce((s,l)=>s+(l.remainingAmount||l.amount),0),av=td-tl;if(av<r.amount)return alert(`Insufficient bank funds! Available: ${formatMoney(av)}`);await updateDoc(doc(db,"loanRequests",id),{status:'approved'});await setDoc(doc(collection(db,"loans")),{userEmail:r.userEmail,userName:r.userName,amount:r.amount,remainingAmount:total,duration:r.duration,dueDate:due.toISOString(),approvedAt:new Date().toISOString(),status:'active'});await setDoc(doc(collection(db,"transactions")),{userEmail:u.email,userName:u.name,type:'loan_disbursement',amount:r.amount,timestamp:new Date().toISOString()});alert(`Loan approved! Interest: ${formatMoney(interest)} | Total: ${formatMoney(total)}`);};
+window.rejectLoanRequest=async(id)=>{await updateDoc(doc(db,"loanRequests",id),{status:'rejected'});};
+window.recordLoanPayment=(id)=>{selectedLoan=activeLoans.find(l=>l.id===id);if(!selectedLoan)return;document.getElementById('loanPaymentUser').value=`${selectedLoan.userName} (${selectedLoan.userEmail})`;document.getElementById('loanPaymentAmount').value='';openModal('loanPaymentModal');};
+document.getElementById('confirmLoanPaymentBtn').addEventListener('click',async()=>{const a=parseFloat(document.getElementById('loanPaymentAmount').value);if(!a||a<=0)return alert('Invalid');const u=users.find(x=>x.email===selectedLoan.userEmail);if(!u)return;if(u.balance<a)return alert('Insufficient balance');const rem=(selectedLoan.remainingAmount||selectedLoan.amount)-a;await updateDoc(doc(db,"users",u.id),{balance:u.balance-a});await updateDoc(doc(db,"loans",selectedLoan.id),{remainingAmount:Math.max(0,rem),status:rem<=0?'paid':'active',lastPayment:a,lastPaymentDate:new Date().toISOString()});await setDoc(doc(collection(db,"transactions")),{userEmail:u.email,userName:u.name,type:'loan_repayment',amount:a,timestamp:new Date().toISOString()});closeModal('loanPaymentModal');alert('Recorded!');});
+document.getElementById('distributeProfitsBtn').addEventListener('click',async()=>{const td=users.reduce((s,u)=>s+(u.balance||0),0);if(td<=0)return alert('No deposits');const lr=transactions.filter(t=>t.type==='loan_repayment').reduce((s,t)=>s+t.amount,0),pd=transactions.filter(t=>t.type==='profit_share').reduce((s,t)=>s+t.amount,0),ud=Math.max(0,lr*0.1-pd);if(ud<=0)return alert('No undistributed profits');if(!confirm(`Distribute ${formatMoney(ud)}?`))return;let c=0;for(const u of users){if(u.balance>0){const sh=ud*(u.balance/td);if(sh>0){await updateDoc(doc(db,"users",u.id),{balance:u.balance+sh});await setDoc(doc(collection(db,"transactions")),{userEmail:u.email,userName:u.name,type:'profit_share',amount:sh,timestamp:new Date().toISOString(),note:`Profit share (${((u.balance/td)*100).toFixed(2)}% pool)`});c++;}}}alert(`Distributed to ${c} depositors!`);});
+window.openModal=(id)=>document.getElementById(id).style.display='flex';
+window.closeModal=(id)=>document.getElementById(id).style.display='none';
+document.getElementById('addUserBtn').addEventListener('click',()=>openModal('addUserModal'));
+document.getElementById('userSearch').addEventListener('input',renderUsersTable);
+setInterval(async()=>{const s=await getDoc(doc(db,"settings","interest"));if(!s.exists())return;const d=s.data(),now=new Date();for(const l of activeLoans){if(l.status==='active'&&new Date(l.dueDate)<now){const lp=l.lastPenaltyDate?new Date(l.lastPenaltyDate):new Date(l.dueDate),ms=Math.floor((now-lp)/(1000*60*60*24*30));if(ms>=1){const pen=(l.remainingAmount||l.amount)*((d.loanRate||10)/100);await updateDoc(doc(db,"loans",l.id),{remainingAmount:(l.remainingAmount||l.amount)+pen,status:'overdue',lastPenaltyDate:now.toISOString()});}}}},3600000);
+</script>
+</body>
+</html>

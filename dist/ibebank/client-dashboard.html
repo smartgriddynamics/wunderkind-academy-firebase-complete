@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+  <title>IBE Bank · Client Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    :root {
+      --primary: #1a3a5c; --primary-light: #2a5a8c; --primary-dark: #0f2842;
+      --accent: #c9a23d; --accent-light: #e0c06c; --accent-dark: #a07f2a;
+      --success: #10b981; --danger: #ef4444; --warning: #f59e0b;
+      --agent: #0891b2; --dark: #1e1e2e; --light: #f8fafc;
+      --white: #ffffff; --gray: #6b7280; --gray-light: #e5e7eb;
+      --sidebar-width: 260px; --transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; background: #f0f2f5; color: #1a1a1a; min-height: 100vh; display: flex; }
+    
+    .sidebar {
+      width: var(--sidebar-width); background: linear-gradient(180deg, #1a1f2e 0%, #151a26 100%);
+      color: white; position: fixed; height: 100vh; overflow-y: auto; transition: var(--transition);
+      z-index: 100; display: flex; flex-direction: column;
+    }
+    
+    .sidebar-header { padding: 28px 24px; border-bottom: 1px solid rgba(255,255,255,0.08); text-align: center; }
+    .sidebar-logo { display: flex; align-items: center; justify-content: center; gap: 12px; }
+    .sidebar-logo-icon {
+      width: 42px; height: 42px; background: linear-gradient(135deg, var(--accent), var(--accent-light));
+      border-radius: 12px; display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 1.1rem; color: var(--dark);
+    }
+    .sidebar-logo-text { font-size: 1.4rem; font-weight: 700; color: white; letter-spacing: -0.02em; }
+    .sidebar-logo-text span { color: var(--accent); }
+    
+    .sidebar-user { padding: 20px 24px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .sidebar-avatar {
+      width: 44px; height: 44px; background: linear-gradient(135deg, var(--primary-light), var(--accent));
+      border-radius: 12px; display: flex; align-items: center; justify-content: center;
+      font-weight: 600; font-size: 1rem; flex-shrink: 0;
+    }
+    .sidebar-user-info h4 { font-size: 0.9rem; font-weight: 600; color: white; margin-bottom: 2px; }
+    .sidebar-user-info p { font-size: 0.75rem; color: rgba(255,255,255,0.5); }
+    
+    .sidebar-account { padding: 16px 24px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .sidebar-account-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(255,255,255,0.4); margin-bottom: 4px; }
+    .sidebar-account-number { font-size: 1.1rem; font-weight: 600; color: var(--accent); letter-spacing: 2px; }
+    
+    .sidebar-nav { padding: 16px 12px; flex: 1; }
+    .nav-section { margin-bottom: 8px; }
+    .nav-section-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(255,255,255,0.3); padding: 8px 16px 8px; }
+    .nav-item {
+      display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+      color: rgba(255,255,255,0.65); border-radius: 10px; margin-bottom: 2px;
+      transition: var(--transition); cursor: pointer; border: none; background: none;
+      width: 100%; font-size: 0.88rem; font-weight: 500; text-align: left;
+    }
+    .nav-item i { width: 22px; font-size: 1.1rem; text-align: center; }
+    .nav-item:hover { background: rgba(255,255,255,0.08); color: white; }
+    .nav-item.active { background: var(--primary); color: white; box-shadow: 0 4px 12px rgba(26, 58, 92, 0.4); }
+    .nav-badge { margin-left: auto; background: var(--danger); color: white; font-size: 0.65rem; padding: 3px 8px; border-radius: 20px; font-weight: 600; }
+    
+    .sidebar-footer { padding: 16px 12px; border-top: 1px solid rgba(255,255,255,0.08); }
+    .logout-nav-item {
+      display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+      color: rgba(255,255,255,0.5); border-radius: 10px; transition: var(--transition);
+      cursor: pointer; border: none; background: none; width: 100%; font-size: 0.88rem; font-weight: 500; text-align: left;
+    }
+    .logout-nav-item:hover { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+    .logout-nav-item i { width: 22px; font-size: 1.1rem; }
+    
+    .main-content { flex: 1; margin-left: var(--sidebar-width); padding: 24px; min-height: 100vh; }
+    .page-title { font-size: 1.6rem; font-weight: 700; color: var(--dark); margin-bottom: 28px; }
+    .content-section { display: none; }
+    .content-section.active { display: block; }
+    
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 28px; }
+    .stat-card {
+      background: white; border-radius: 18px; padding: 24px; box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+      transition: transform 0.2s;
+    }
+    .stat-card:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.08); }
+    .stat-card.highlight { border: 2px solid var(--accent); background: linear-gradient(135deg, #fffbeb, #fef3c7); }
+    .stat-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; margin-bottom: 16px; }
+    .stat-icon.blue { background: #dbeafe; color: var(--primary); }
+    .stat-icon.green { background: #d1fae5; color: var(--success); }
+    .stat-icon.red { background: #fee2e2; color: var(--danger); }
+    .stat-icon.gold { background: #fef3c7; color: var(--accent); }
+    .stat-icon.purple { background: #e0e7ff; color: #8b5cf6; }
+    .stat-icon.teal { background: #ccfbf1; color: #0d9488; }
+    .stat-icon.orange { background: #fff7ed; color: #ea580c; }
+    .stat-value { font-size: 1.8rem; font-weight: 700; color: var(--dark); }
+    .stat-label { color: var(--gray); font-size: 0.85rem; margin-top: 4px; }
+    
+    .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 28px; }
+    .card { background: white; border-radius: 18px; padding: 24px; box-shadow: 0 2px 10px rgba(0,0,0,0.04); }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .card-title { font-size: 1.1rem; font-weight: 600; color: var(--dark); }
+    .chart-container { position: relative; height: 250px; }
+    
+    .table-card { background: white; border-radius: 18px; padding: 24px; box-shadow: 0 2px 10px rgba(0,0,0,0.04); overflow-x: auto; margin-bottom: 28px; }
+    .table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; padding: 12px; color: var(--gray); font-weight: 500; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em; border-bottom: 2px solid var(--gray-light); }
+    td { padding: 14px 12px; border-bottom: 1px solid #f3f4f6; font-size: 0.9rem; }
+    
+    .transaction-list { display: flex; flex-direction: column; gap: 10px; max-height: 400px; overflow-y: auto; }
+    .transaction-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px; background: #f8fafc; border-radius: 12px; gap: 12px;
+    }
+    .transaction-icon { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .transaction-icon.incoming { background: #d1fae5; color: var(--success); }
+    .transaction-icon.outgoing { background: #fee2e2; color: var(--danger); }
+    .transaction-icon.neutral { background: #fef3c7; color: #92400e; }
+    .transaction-info { flex: 1; min-width: 120px; }
+    .transaction-title { font-weight: 600; font-size: 0.9rem; margin-bottom: 2px; }
+    .transaction-date { font-size: 0.75rem; color: var(--gray); }
+    .transaction-note { font-size: 0.75rem; color: #a0aec0; font-style: italic; margin-top: 2px; }
+    .transaction-amount { font-weight: 600; white-space: nowrap; font-size: 0.9rem; }
+    .amount-positive { color: var(--success); }
+    .amount-negative { color: var(--danger); }
+    .amount-neutral { color: #92400e; }
+    
+    .form-card { background: white; border-radius: 18px; padding: 28px; box-shadow: 0 2px 10px rgba(0,0,0,0.04); margin-bottom: 28px; }
+    .form-group { margin-bottom: 18px; }
+    .form-label { display: block; margin-bottom: 8px; font-weight: 500; color: var(--dark); font-size: 0.9rem; }
+    .form-input, .form-select { width: 100%; padding: 12px 16px; border: 2px solid var(--gray-light); border-radius: 10px; font-size: 0.95rem; }
+    .form-input:focus, .form-select:focus { outline: none; border-color: var(--primary); }
+    
+    .btn {
+      padding: 12px 24px; border-radius: 10px; font-weight: 600; cursor: pointer;
+      transition: all 0.2s; border: none; font-size: 0.9rem;
+      display: inline-flex; align-items: center; gap: 8px;
+    }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-accent { background: var(--accent); color: var(--dark); }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-success { background: var(--success); color: white; }
+    .btn-sm { padding: 8px 16px; font-size: 0.8rem; }
+    .btn-block { width: 100%; justify-content: center; }
+    .btn-icon { background: none; border: none; padding: 8px; border-radius: 8px; cursor: pointer; color: var(--gray); transition: all 0.2s; }
+    .btn-icon:hover { background: #f3f4f6; color: var(--primary); }
+    .btn-icon.danger:hover { background: #fee2e2; color: var(--danger); }
+    
+    .debt-warning-card { background: #fef3c7; border-radius: 14px; padding: 18px; border-left: 4px solid var(--danger); margin-bottom: 20px; }
+    .info-card { background: #dbeafe; border-radius: 14px; padding: 18px; border-left: 4px solid var(--primary); margin-bottom: 20px; }
+    .expected-balance-card { background: linear-gradient(135deg, #fffbeb, #fef3c7); border-radius: 14px; padding: 20px; border-left: 4px solid var(--accent); margin-bottom: 20px; }
+    
+    .loan-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+    .loan-stat-card { background: #f8fafc; border-radius: 14px; padding: 18px; text-align: center; }
+    
+    .calc-result-card { background: linear-gradient(135deg, var(--primary), var(--accent)); border-radius: 16px; padding: 24px; color: white; margin-top: 20px; text-align: center; }
+    
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center; }
+    .modal { background: white; border-radius: 20px; padding: 30px; max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .modal-close { cursor: pointer; font-size: 1.3rem; color: var(--gray); background: none; border: none; }
+    
+    .notif-panel { position: fixed; top: 90px; right: 20px; width: 340px; max-height: 480px; background: white; border-radius: 18px; box-shadow: 0 15px 40px rgba(0,0,0,0.15); overflow: hidden; display: none; z-index: 1000; }
+    
+    .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
+    .status-active { background: #d1fae5; color: #065f46; }
+    .status-overdue { background: #fee2e2; color: #991b1b; }
+    .status-paused { background: #fef3c7; color: #92400e; }
+    
+    .recipient-preview { background: #d1fae5; border-radius: 12px; padding: 16px; margin-bottom: 18px; border-left: 4px solid var(--success); display: none; }
+    .recipient-notfound { background: #fee2e2; border-radius: 12px; padding: 16px; margin-bottom: 18px; border-left: 4px solid var(--danger); color: #991b1b; display: none; }
+    
+    .tabs { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
+    .tab { padding: 10px 20px; border-radius: 10px; cursor: pointer; border: 2px solid var(--gray-light); background: white; font-weight: 500; font-size: 0.9rem; transition: all 0.2s; }
+    .tab:hover { border-color: var(--accent); }
+    .tab.active { background: var(--accent); color: var(--dark); border-color: var(--accent); font-weight: 600; }
+    
+    .worker-list-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 16px; background: white; border-radius: 10px;
+      margin-bottom: 8px; gap: 12px; border: 1px solid var(--gray-light);
+    }
+    .worker-list-info { display: flex; align-items: center; gap: 10px; flex: 1; }
+    .worker-list-avatar {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, #ea580c, #f59e0b);
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      color: white; font-weight: 600; font-size: 0.8rem; flex-shrink: 0;
+    }
+    .payroll-card {
+      background: white; border-radius: 18px; padding: 24px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.04); margin-bottom: 16px;
+    }
+    .payroll-card-header {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      margin-bottom: 16px; flex-wrap: wrap; gap: 12px;
+    }
+    .payroll-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .auto-badge { background: #dbeafe; color: var(--primary); padding: 3px 8px; border-radius: 20px; font-size: 0.65rem; font-weight: 600; }
+    
+    .filter-bar { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; align-items: center; }
+    .filter-bar input, .filter-bar select { padding: 10px 14px; border: 2px solid var(--gray-light); border-radius: 10px; font-size: 0.9rem; }
+    .filter-bar input:focus, .filter-bar select:focus { outline: none; border-color: var(--primary); }
+    
+    .menu-toggle { display: none; position: fixed; top: 20px; left: 20px; z-index: 200; width: 42px; height: 42px; border-radius: 12px; background: var(--primary); color: white; border: none; cursor: pointer; font-size: 1.2rem; }
+    
+    @media (max-width: 1024px) { .dashboard-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.mobile-open { transform: translateX(0); }
+      .main-content { margin-left: 0; }
+      .menu-toggle { display: flex; align-items: center; justify-content: center; }
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+      .loan-stats-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 480px) { .stats-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo"><div class="sidebar-logo-icon">IBE</div><div class="sidebar-logo-text"><span>IBE</span> Bank</div></div>
+    </div>
+    <div class="sidebar-user">
+      <div class="sidebar-avatar" id="sidebarInitials">CL</div>
+      <div class="sidebar-user-info"><h4 id="sidebarName">Client</h4><p id="sidebarEmail">Loading...</p></div>
+    </div>
+    <div class="sidebar-account">
+      <div class="sidebar-account-label">Account Number</div>
+      <div class="sidebar-account-number" id="sidebarAccountNumber">---</div>
+    </div>
+    <div class="sidebar-nav">
+      <div class="nav-section"><div class="nav-section-label">Main</div>
+        <button class="nav-item active" data-section="dashboard"><i class="fas fa-th-large"></i> Dashboard</button>
+      </div>
+      <div class="nav-section"><div class="nav-section-label">Banking</div>
+        <button class="nav-item" data-section="transfer"><i class="fas fa-exchange-alt"></i> Transfer Money</button>
+        <button class="nav-item" data-section="loan"><i class="fas fa-hand-holding-usd"></i> Loans</button>
+        <button class="nav-item" data-section="request"><i class="fas fa-paper-plane"></i> Requests<span class="nav-badge" id="requestBadge">0</span></button>
+      </div>
+      <div class="nav-section"><div class="nav-section-label">IBE Pay</div>
+        <button class="nav-item" data-section="ibepay"><i class="fas fa-people-arrows"></i> IBE Pay</button>
+      </div>
+      <div class="nav-section"><div class="nav-section-label">Tools</div>
+        <button class="nav-item" data-section="calculator"><i class="fas fa-calculator"></i> Calculator</button>
+        <button class="nav-item" data-section="transactions"><i class="fas fa-list-alt"></i> History</button>
+      </div>
+    </div>
+    <div class="sidebar-footer">
+      <button class="logout-nav-item" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</button>
+    </div>
+  </div>
+
+  <div class="main-content">
+    <h1 class="page-title" id="pageTitle">Dashboard</h1>
+
+    <!-- DASHBOARD -->
+    <div class="content-section active" id="dashboard-section">
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-icon blue"><i class="fas fa-wallet"></i></div><div class="stat-value" id="balance">TSh 0</div><div class="stat-label">Current Balance</div></div>
+        <div class="stat-card highlight"><div class="stat-icon teal"><i class="fas fa-chart-line"></i></div><div class="stat-value" id="expectedBalance">TSh 0</div><div class="stat-label">✨ Expected Balance</div></div>
+        <div class="stat-card"><div class="stat-icon red"><i class="fas fa-hand-holding-usd"></i></div><div class="stat-value" id="activeLoanDebt">TSh 0</div><div class="stat-label">Active Loan Debt</div></div>
+        <div class="stat-card"><div class="stat-icon purple"><i class="fas fa-calculator"></i></div><div class="stat-value" id="netBalance">TSh 0</div><div class="stat-label">Net Balance</div></div>
+        <div class="stat-card"><div class="stat-icon orange"><i class="fas fa-people-arrows"></i></div><div class="stat-value" id="payrollMonthlyCost">TSh 0</div><div class="stat-label">Monthly Payroll Cost</div></div>
+        <div class="stat-card"><div class="stat-icon gold"><i class="fas fa-gift"></i></div><div class="stat-value" id="totalProfitShare">TSh 0</div><div class="stat-label">Profit Earned</div></div>
+      </div>
+      
+      <div class="expected-balance-card">
+        <i class="fas fa-info-circle" style="color:var(--accent);"></i>
+        <strong>Expected Balance</strong> = Balance + Pending Profit - Loan Debt
+        <span style="font-size:0.85rem;display:block;margin-top:8px;color:var(--dark);"><strong id="expectedBreakdown">Loading...</strong></span>
+      </div>
+      
+      <div class="debt-warning-card" id="debtWarning" style="display:none;">
+        <i class="fas fa-exclamation-triangle" style="color:var(--danger);"></i>
+        <strong> Loan Due!</strong> Payment will be auto-deducted on due date.
+      </div>
+      
+      <div class="dashboard-grid">
+        <div class="card"><div class="card-header"><h3 class="card-title">Balance History</h3></div><div class="chart-container"><canvas id="balanceHistoryChart"></canvas></div></div>
+        <div class="card"><div class="card-header"><h3 class="card-title">Recent Transactions</h3></div><div class="transaction-list" id="recentTransactions"></div></div>
+      </div>
+    </div>
+
+    <!-- TRANSFER -->
+    <div class="content-section" id="transfer-section">
+      <div class="form-card">
+        <h3 class="card-title" style="margin-bottom:20px;"><i class="fas fa-exchange-alt"></i> Transfer Money</h3>
+        <div class="info-card"><strong>Your Account:</strong> <span id="transferAccountNumber">---</span></div>
+        <div class="form-group"><label class="form-label">Send To</label><select id="transferType" class="form-select" onchange="onTransferTypeChange()"><option value="user">Bank User (Client)</option><option value="agent">Bank Agent</option></select></div>
+        <div class="form-group"><label class="form-label">Recipient Account Number</label><input type="text" id="recipientAccount" class="form-input" placeholder="Enter account number" maxlength="10"></div>
+        <div class="recipient-preview" id="recipientPreview"><div style="display:flex;align-items:center;gap:12px;"><div style="width:44px;height:44px;background:linear-gradient(135deg,var(--primary),var(--accent));border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;" id="recipientInitials">--</div><div><h4 id="recipientName">---</h4><p style="color:#065f46;font-size:0.85rem;"><i class="fas fa-check-circle"></i> <span id="recipientType">Verified</span></p></div></div></div>
+        <div class="recipient-notfound" id="recipientNotFound"><i class="fas fa-exclamation-circle"></i> Account not found!</div>
+        <div class="form-group"><label class="form-label">Amount (TSh)</label><input type="number" id="transferAmount" class="form-input" placeholder="Enter amount" min="0"></div>
+        <div class="form-group"><label class="form-label">Description</label><input type="text" id="transferDescription" class="form-input" placeholder="Payment for..."></div>
+        <div id="transferSummary" style="display:none;background:#f8fafc;border-radius:12px;padding:20px;margin-bottom:20px;"><h4 style="margin-bottom:12px;">Summary</h4><div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>From:</span><span><strong id="summaryFrom">You</strong></span></div><div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>To:</span><span><strong id="summaryTo">---</strong></span></div><div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>Amount:</span><span><strong id="summaryAmount">TSh 0</strong></span></div><div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>Description:</span><span><strong id="summaryDescription">---</strong></span></div><div style="display:flex;justify-content:space-between;padding-top:10px;border-top:1px solid #e2e8f0;"><span>After Transfer:</span><span><strong id="summaryNewBalance">TSh 0</strong></span></div></div>
+        <button class="btn btn-primary btn-block" id="sendTransferBtn" disabled><i class="fas fa-paper-plane"></i> Send Transfer</button>
+      </div>
+    </div>
+
+    <!-- LOAN -->
+    <div class="content-section" id="loan-section">
+      <div class="form-card">
+        <h3 class="card-title" style="margin-bottom:20px;"><i class="fas fa-hand-holding-usd"></i> Loan Management</h3>
+        <div class="debt-warning-card"><div style="display:flex;justify-content:space-between;align-items:center;"><span><strong>Total Debt:</strong></span><span style="font-size:1.3rem;font-weight:700;color:var(--danger);" id="loanSectionDebt">TSh 0</span></div><p style="font-size:0.8rem;color:#92400e;margin-top:6px;">10% interest per month. Auto-deducted on due date!</p></div>
+        <div class="loan-stats-grid"><div class="loan-stat-card"><div style="font-size:1.5rem;font-weight:700;" id="activeLoanAmount">TSh 0</div><div style="color:var(--gray);font-size:0.85rem;">Active Loans</div></div><div class="loan-stat-card"><div style="font-size:1.5rem;font-weight:700;" id="nextPaymentDue">—</div><div style="color:var(--gray);font-size:0.85rem;">Next Due Date</div></div></div>
+        <h4 style="margin:20px 0;font-weight:600;">Calculator (10%/month)</h4>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;"><div class="form-group"><label class="form-label">Amount</label><input type="number" id="calcLoanAmount" class="form-input" value="100000"></div><div class="form-group"><label class="form-label">Duration</label><select id="calcLoanDuration" class="form-select"><option value="30">30 Days (10%)</option><option value="60">60 Days (20%)</option><option value="90" selected>90 Days (30%)</option><option value="180">180 Days (60%)</option></select></div></div>
+        <button class="btn btn-accent btn-block" id="calculateLoanBtn" style="margin:12px 0;"><i class="fas fa-calculator"></i> Calculate</button>
+        <div class="calc-result-card" id="loanCalcResult" style="display:none;"><p style="font-size:0.85rem;opacity:0.9;">Total to Repay</p><div style="font-size:2rem;font-weight:800;" id="loanCalcTotalRepayment">TSh 0</div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:14px;"><div><div style="font-size:0.7rem;opacity:0.8;">Loan</div><div id="loanCalcPrincipal">TSh 0</div></div><div><div style="font-size:0.7rem;opacity:0.8;">Interest</div><div id="loanCalcInterest">TSh 0</div></div><div><div style="font-size:0.7rem;opacity:0.8;">Total</div><div id="loanCalcTotal">TSh 0</div></div></div></div>
+        <h4 style="margin:20px 0;font-weight:600;">Request Loan</h4>
+        <div class="form-group"><label class="form-label">Amount (TSh)</label><input type="number" id="loanAmount" class="form-input"></div><div class="form-group"><label class="form-label">Duration</label><select id="loanDuration" class="form-select"><option value="30">30 Days</option><option value="60">60 Days</option><option value="90">90 Days</option><option value="180">180 Days</option></select></div>
+        <button class="btn btn-primary btn-block" id="requestLoanBtn">Request Loan</button>
+        <div class="info-card" style="margin-top:20px;"><i class="fas fa-info-circle"></i> <strong>Note:</strong> Auto-deducted on due date from your balance.</div>
+        <h4 style="margin:20px 0;font-weight:600;">Active Loans</h4><div id="activeLoansList"></div>
+      </div>
+    </div>
+
+    <!-- IBE PAY SECTION -->
+    <div class="content-section" id="ibepay-section">
+      <div class="stats-grid" style="margin-bottom:24px;">
+        <div class="stat-card"><div class="stat-icon orange"><i class="fas fa-people-arrows"></i></div><div class="stat-value" id="ibepayActivePayrolls">0</div><div class="stat-label">Active Payrolls</div></div>
+        <div class="stat-card"><div class="stat-icon blue"><i class="fas fa-users"></i></div><div class="stat-value" id="ibepayTotalWorkers">0</div><div class="stat-label">Total Workers</div></div>
+        <div class="stat-card"><div class="stat-icon red"><i class="fas fa-money-bill-wave"></i></div><div class="stat-value" id="ibepayMonthlyCost">TSh 0</div><div class="stat-label">Monthly Cost</div></div>
+        <div class="stat-card"><div class="stat-icon green"><i class="fas fa-calendar-check"></i></div><div class="stat-value" id="ibepayNextPayout">—</div><div class="stat-label">Last Payment</div></div>
+      </div>
+      
+      <div class="tabs" id="ibepayTabs">
+        <button class="tab active" data-tab="payrolls">My Payrolls</button>
+        <button class="tab" data-tab="create">Create Payroll</button>
+      </div>
+      
+      <div id="ibepay-payrolls-tab"><div id="payrollsList"><p style="text-align:center;color:var(--gray);padding:40px;">Loading payrolls...</p></div></div>
+      
+      <div id="ibepay-create-tab" style="display:none;">
+        <div class="form-card">
+          <h3 style="margin-bottom:20px;"><i class="fas fa-plus-circle"></i> Create New Payroll</h3>
+          <div class="form-group"><label class="form-label">Payroll Name</label><input type="text" id="payrollName" class="form-input" placeholder="e.g., Staff Salaries October"></div>
+          <div class="form-group"><label class="form-label">📅 Payment Date (Auto-pays on this date)</label><input type="date" id="payrollPaymentDate" class="form-input"></div>
+          <div class="info-card" style="background:#fef3c7;border-left:4px solid var(--accent);"><i class="fas fa-robot"></i> <strong>Auto-Pay:</strong> This payroll will automatically process on the payment date!</div>
+          <div style="background:#f8fafc;border-radius:12px;padding:16px;margin-bottom:16px;">
+            <h4 style="margin-bottom:12px;">Add Workers</h4>
+            <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;">
+              <div class="form-group" style="margin-bottom:0;"><label class="form-label" style="font-size:0.8rem;">Account Number</label><input type="text" id="workerAccInput" class="form-input" placeholder="10-digit account" maxlength="10"></div>
+              <div class="form-group" style="margin-bottom:0;"><label class="form-label" style="font-size:0.8rem;">Salary (TSh)</label><input type="number" id="workerSalaryInput" class="form-input" placeholder="Amount" min="0"></div>
+              <button class="btn btn-primary btn-sm" id="addWorkerBtn" style="height:44px;"><i class="fas fa-plus"></i> Add</button>
+            </div>
+            <div id="workerPreview" style="display:none;margin-top:8px;padding:10px;background:#d1fae5;border-radius:8px;"></div>
+            <div id="workerNotFound" style="display:none;margin-top:8px;padding:10px;background:#fee2e2;border-radius:8px;color:#991b1b;"></div>
+          </div>
+          <div id="workersList" style="margin-bottom:16px;"><p style="color:var(--gray);font-size:0.9rem;text-align:center;">No workers added yet</p></div>
+          <div style="background:#fffbeb;border-radius:12px;padding:16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;"><span><strong>Total:</strong></span><span style="font-size:1.3rem;font-weight:700;color:var(--danger);" id="totalSalaryDisplay">TSh 0</span></div>
+          <button class="btn btn-accent btn-block" id="createPayrollBtn"><i class="fas fa-save"></i> Create Payroll</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CALCULATOR -->
+    <div class="content-section" id="calculator-section">
+      <div class="form-card">
+        <h3 class="card-title" style="margin-bottom:20px;"><i class="fas fa-calculator"></i> Profit Share Calculator</h3>
+        <div class="form-group"><label class="form-label">Total Loan Interest (TSh)</label><input type="number" id="calcTotalInterest" class="form-input" value="500000"></div>
+        <div class="form-group"><label class="form-label">Your Balance (TSh)</label><input type="number" id="calcYourBalance" class="form-input" value="1000000"></div>
+        <div class="form-group"><label class="form-label">Total Bank Deposits (TSh)</label><input type="number" id="calcTotalDeposits" class="form-input" value="10000000"></div>
+        <button class="btn btn-accent btn-block" id="calculateProfitBtn"><i class="fas fa-chart-pie"></i> Calculate</button>
+        <div class="calc-result-card" id="profitCalcResult" style="display:none;"><p style="font-size:0.85rem;opacity:0.9;">Your Share</p><div style="font-size:2rem;font-weight:800;" id="profitShareAmount">TSh 0</div></div>
+      </div>
+    </div>
+
+    <!-- TRANSACTIONS -->
+    <div class="content-section" id="transactions-section">
+      <div class="table-card">
+        <div class="table-header">
+          <h3 class="card-title">Transaction History</h3>
+          <button class="btn btn-accent btn-sm" onclick="downloadClientTransactionsPDF()"><i class="fas fa-download"></i> Download PDF</button>
+        </div>
+        
+        <div class="filter-bar">
+          <input type="text" id="clientTransSearch" placeholder="🔍 Search..." oninput="filterClientTransactions()" style="flex:1;min-width:150px;">
+          <select id="clientTransType" onchange="filterClientTransactions()">
+            <option value="all">All Types</option>
+            <option value="transfer_sent">📤 Sent</option>
+            <option value="transfer_received">📥 Received</option>
+            <option value="payroll_sent">💸 Payroll</option>
+            <option value="payroll_received">💰 Salary</option>
+            <option value="deposit">📥 Deposit</option>
+            <option value="withdrawal">📤 Withdrawal</option>
+            <option value="profit_share">🎁 Profit</option>
+            <option value="loan_disbursement">📋 Loan</option>
+            <option value="loan_repayment">💳 Repayment</option>
+            <option value="loan_auto_deduct">🔄 Auto-Deduct</option>
+          </select>
+          <select id="clientTransMonth" onchange="filterClientTransactions()">
+            <option value="all">All Months</option>
+            <option value="0">January</option>
+            <option value="1">February</option>
+            <option value="2">March</option>
+            <option value="3">April</option>
+            <option value="4">May</option>
+            <option value="5">June</option>
+            <option value="6">July</option>
+            <option value="7">August</option>
+            <option value="8">September</option>
+            <option value="9">October</option>
+            <option value="10">November</option>
+            <option value="11">December</option>
+          </select>
+          <select id="clientTransYear" onchange="filterClientTransactions()">
+            <option value="all">All Years</option>
+          </select>
+          <button class="btn btn-sm btn-primary" onclick="clearClientFilters()"><i class="fas fa-times"></i> Clear</button>
+        </div>
+        
+        <table>
+          <thead><tr><th>Date</th><th>Type</th><th>Details</th><th>Amount</th></tr></thead>
+          <tbody id="clientAllTransactionsBody"></tbody>
+        </table>
+        <p style="text-align:center;color:var(--gray);margin-top:12px;" id="clientTransCount">0 transactions</p>
+      </div>
+    </div>
+
+    <!-- REQUEST -->
+    <div class="content-section" id="request-section">
+      <div class="form-card">
+        <h3 class="card-title" style="margin-bottom:20px;"><i class="fas fa-paper-plane"></i> Make a Request</h3>
+        <div class="form-group"><label class="form-label">Type</label><select id="requestType" class="form-select"><option value="deposit">Deposit</option><option value="withdraw">Withdrawal</option></select></div>
+        <div class="form-group"><label class="form-label">Amount (TSh)</label><input type="number" id="requestAmount" class="form-input"></div>
+        <div class="form-group"><label class="form-label">Note</label><textarea id="requestNote" class="form-input" rows="3"></textarea></div>
+        <button class="btn btn-primary btn-block" id="submitRequestBtn">Submit Request</button>
+        <div style="margin-top:20px;" id="userRequests"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Worker Modal -->
+  <div class="modal-overlay" id="addWorkerModal">
+    <div class="modal">
+      <div class="modal-header"><h3><i class="fas fa-user-plus"></i> Add Worker</h3><button class="modal-close" onclick="closeModal('addWorkerModal')">&times;</button></div>
+      <p style="color:var(--gray);margin-bottom:16px;" id="modalPayrollName">Payroll: —</p>
+      <div class="form-group"><label class="form-label">Account Number</label><input type="text" id="modalWorkerAccInput" class="form-input" placeholder="10-digit account" maxlength="10"></div>
+      <div id="modalWorkerPreview" style="display:none;background:#d1fae5;border-radius:10px;padding:12px;margin-bottom:12px;"></div>
+      <div id="modalWorkerNotFound" style="display:none;background:#fee2e2;border-radius:10px;padding:12px;margin-bottom:12px;color:#991b1b;"></div>
+      <div class="form-group"><label class="form-label">Monthly Salary (TSh)</label><input type="number" id="modalWorkerSalary" class="form-input" placeholder="Amount" min="0"></div>
+      <button class="btn btn-primary btn-block" id="confirmAddWorkerBtn"><i class="fas fa-plus"></i> Add Worker</button>
+      <button class="btn btn-danger btn-block" style="margin-top:8px;" onclick="closeModal('addWorkerModal')">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Edit Payroll Modal -->
+  <div class="modal-overlay" id="editPayrollModal">
+    <div class="modal">
+      <div class="modal-header"><h3><i class="fas fa-edit"></i> Edit Payroll</h3><button class="modal-close" onclick="closeModal('editPayrollModal')">&times;</button></div>
+      <div class="form-group"><label class="form-label">Payroll Name</label><input type="text" id="editPayrollName" class="form-input"></div>
+      <div class="form-group"><label class="form-label">📅 Payment Date</label><input type="date" id="editPayrollPaymentDate" class="form-input"></div>
+      <button class="btn btn-primary btn-block" id="saveEditPayrollBtn"><i class="fas fa-save"></i> Save</button>
+      <button class="btn btn-danger btn-block" style="margin-top:8px;" onclick="closeModal('editPayrollModal')">Cancel</button>
+    </div>
+  </div>
+
+  <div class="notif-panel" id="notificationsPanel">
+    <div style="padding:20px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;"><h4>Notifications</h4><button onclick="markAllRead()" style="background:none;border:none;color:var(--primary);cursor:pointer;font-weight:600;">Mark all read</button></div>
+    <div style="max-height:400px;overflow-y:auto;" id="notificationsList"></div>
+  </div>
+
+  <div class="modal-overlay" id="requestModal">
+    <div class="modal"><div class="modal-header"><h3 id="modalTitle">Request</h3><i class="fas fa-times modal-close" onclick="closeRequestModal()"></i></div>
+      <div class="form-group"><label class="form-label">Amount (TSh)</label><input type="number" id="modalAmount" class="form-input"></div>
+      <div class="form-group"><label class="form-label">Note</label><input type="text" id="modalNote" class="form-input"></div>
+      <button class="btn btn-primary btn-block" id="modalSubmitBtn">Submit</button>
+      <button class="btn btn-danger btn-block" style="margin-top:10px;" onclick="closeRequestModal()">Cancel</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc, collection, query, where, orderBy, onSnapshot, updateDoc, getDocs, runTransaction, deleteDoc, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCifzsvcufqs-HOg_KDOzkUYoxsHhlTfN8", authDomain: "minibank-b76d6.firebaseapp.com",
+      projectId: "minibank-b76d6", storageBucket: "minibank-b76d6.firebasestorage.app",
+      messagingSenderId: "1076277480681", appId: "1:1076277480681:web:38592a2bd360ab7e7db478"
+    };
+
+    const app = initializeApp(firebaseConfig), auth = getAuth(app), db = getFirestore(app);
+    let currentUser = null, userData = null, chart = null, currentRequestType = 'deposit';
+    let allTransactions = [], foundRecipientData = null, transferValid = false, transferType = 'user';
+    let allUsers = [], allActiveLoans = [], payrolls = [], tempWorkers = [], foundWorkerForAdd = null;
+    let currentPayrollForAddWorker = null, foundModalWorker = null, editingPayrollId = null;
+
+    const formatMoney = (val) => {
+      if (val < 0) return '-TSh ' + new Intl.NumberFormat('en-TZ').format(Math.round(Math.abs(val)));
+      return 'TSh ' + new Intl.NumberFormat('en-TZ').format(Math.round(val || 0));
+    };
+
+    function generateAccountNumber(uid) { if(!uid)return'---';let n='';for(let i=0;i<uid.length;i++){if(uid[i]>='0'&&uid[i]<='9')n+=uid[i];}while(n.length<10)n+='0';return n.substring(0,10); }
+
+    function getTransactionDetails(t) {
+      switch(t.type) {
+        case 'transfer_sent': return `To: ${t.recipientName || 'Unknown'}${t.description ? ' - '+t.description : ''}`;
+        case 'transfer_received': return `From: ${t.senderName || 'Unknown'}${t.description ? ' - '+t.description : ''}`;
+        case 'agent_deposit_received': return `From Agent: ${t.agentName || 'Agent'}${t.description ? ' - '+t.description : ''}`;
+        case 'deposit': return `Deposit${t.note ? ' - '+t.note : ''}`;
+        case 'withdrawal': return `Withdrawal${t.note ? ' - '+t.note : ''}${t.description ? ' - '+t.description : ''}`;
+        case 'payroll_sent': return `Payroll: ${t.description || 'Payment'}`;
+        case 'payroll_received': return `Salary: ${t.description || 'Received'}`;
+        case 'profit_share': return `Profit share${t.note ? ' - '+t.note : ''}`;
+        case 'loan_disbursement': return `Loan disbursed`;
+        case 'loan_repayment': return `Loan repayment`;
+        case 'loan_auto_deduct': return `Auto-deducted loan payment`;
+        default: return t.description || t.note || '—';
+      }
+    }
+
+    function getTransactionTypeLabel(t) {
+      switch(t.type) {
+        case 'transfer_sent': return '📤 Sent';
+        case 'transfer_received': return '📥 Received';
+        case 'agent_deposit_received': return '🏪 Agent';
+        case 'deposit': return '📥 Deposit';
+        case 'withdrawal': return '📤 Withdraw';
+        case 'payroll_sent': return '💸 Payroll';
+        case 'payroll_received': return '💰 Salary';
+        case 'profit_share': return '🎁 Profit';
+        case 'loan_disbursement': return '📋 Loan';
+        case 'loan_repayment': return '💳 Repay';
+        case 'loan_auto_deduct': return '🔄 Auto-Ded';
+        default: return t.type.replace(/_/g,' ').toUpperCase();
+      }
+    }
+
+    // Populate year dropdown
+    const yearSelect = document.getElementById('clientTransYear');
+    const currentYear = new Date().getFullYear();
+    for (let y = currentYear; y >= 2024; y--) {
+      const opt = document.createElement('option');
+      opt.value = y;
+      opt.textContent = y;
+      yearSelect.appendChild(opt);
+    }
+
+    document.getElementById('payrollPaymentDate').value = new Date().toISOString().split('T')[0];
+
+    onAuthStateChanged(auth, async (user) => { 
+      if(!user){window.location.replace('index.html');return;} 
+      currentUser=user; 
+      await loadUserData(); 
+      initRealtimeData(); 
+      if (currentUser) { initPayrollRealtime(); }
+      startAutoPayChecker();
+    });
+
+    async function loadUserData() {
+      try {
+        const docSnap = await getDoc(doc(db,"users",currentUser.uid));
+        if(docSnap.exists()){
+          userData=docSnap.data();
+          if(!userData.accountNumber){const acc=generateAccountNumber(currentUser.uid);await updateDoc(doc(db,"users",currentUser.uid),{accountNumber:acc});userData.accountNumber=acc;}
+          document.getElementById('sidebarName').textContent=userData.name||'Client';
+          document.getElementById('sidebarEmail').textContent=currentUser.email;
+          document.getElementById('sidebarInitials').textContent=(userData.name||'CL').substring(0,2).toUpperCase();
+          document.getElementById('sidebarAccountNumber').textContent=userData.accountNumber;
+          document.getElementById('transferAccountNumber').textContent=userData.accountNumber;
+        }
+      } catch(e){console.error(e);}
+    }
+
+    function initRealtimeData() {
+      onSnapshot(doc(db,"users",currentUser.uid),(doc)=>{if(doc.exists()){userData=doc.data();document.getElementById('balance').textContent=formatMoney(userData.balance||0);updateNetBalance();updateExpectedBalance();}});
+      onSnapshot(collection(db,"users"),(snap)=>{allUsers=[];snap.forEach(d=>allUsers.push({id:d.id,...d.data()}));updateExpectedBalance();});
+      const allLoansQ=query(collection(db,"loans"),where("status","in",["active","overdue"]));
+      onSnapshot(allLoansQ,(snap)=>{allActiveLoans=[];snap.forEach(d=>allActiveLoans.push({id:d.id,...d.data()}));updateExpectedBalance();});
+      const tq=query(collection(db,"transactions"),where("userEmail","==",currentUser.email),orderBy("timestamp","desc"));
+      onSnapshot(tq,(snap)=>{allTransactions=[];snap.forEach(d=>allTransactions.push({id:d.id,...d.data()}));renderTransactions(allTransactions);updateChart();updateProfitStats();updateNetBalance();updateExpectedBalance();filterClientTransactions();});
+      const nq=query(collection(db,"notifications"),where("userEmail","==",currentUser.email),orderBy("timestamp","desc"));
+      onSnapshot(nq,(snap)=>{const notifs=[];snap.forEach(d=>notifs.push({id:d.id,...d.data()}));document.getElementById('notificationsList').innerHTML=notifs.map(n=>`<div style="padding:14px 16px;border-bottom:1px solid #f0f0f0;cursor:pointer;${n.read?'':'background:#e0e7ff;'}"><strong>${n.message}</strong><div style="font-size:0.75rem;color:var(--gray);">${new Date(n.timestamp).toLocaleString()}</div></div>`).join('')||'<p style="padding:20px;text-align:center;color:var(--gray);">No notifications</p>';});
+      const rq=query(collection(db,"requests"),where("userEmail","==",currentUser.email),orderBy("timestamp","desc"));
+      onSnapshot(rq,(snap)=>{const reqs=[];snap.forEach(d=>reqs.push({id:d.id,...d.data()}));document.getElementById('requestBadge').textContent=reqs.filter(r=>r.status==='pending').length;document.getElementById('userRequests').innerHTML=reqs.map(r=>`<div style="padding:12px;background:#f7fafc;border-radius:10px;margin-bottom:8px;"><div style="display:flex;justify-content:space-between;"><span><strong>${r.type.toUpperCase()}</strong></span><span>${formatMoney(r.amount)}</span></div><div style="display:flex;justify-content:space-between;margin-top:6px;"><span>Status: ${r.status}</span><span>${new Date(r.timestamp).toLocaleDateString()}</span></div></div>`).join('')||'<p style="color:var(--gray);">No requests</p>';});
+      const lq=query(collection(db,"loans"),where("userEmail","==",currentUser.email),where("status","in",["active","overdue"]));
+      onSnapshot(lq,(snap)=>{const loans=[];snap.forEach(d=>loans.push({id:d.id,...d.data()}));renderActiveLoans(loans);updateNetBalance();updateExpectedBalance();checkAndAutoDeduct(loans);});
+    }
+
+    function startAutoPayChecker() { checkAndProcessAutoPay(); setInterval(checkAndProcessAutoPay, 60000); }
+    async function checkAndProcessAutoPay() {
+      if (!currentUser) return;
+      const now = new Date(), today = now.toISOString().split('T')[0];
+      try {
+        const pq = query(collection(db, "payrolls"), where("ownerId", "==", currentUser.uid), where("status", "==", "active"));
+        const snap = await getDocs(pq);
+        for (const pd of snap.docs) {
+          const p = pd.data();
+          if (!p.paymentDate || p.paymentDate !== today) continue;
+          if (p.lastPaymentDate && new Date(p.lastPaymentDate).toISOString().split('T')[0] === today) continue;
+          const workers = p.workers || [];
+          if (workers.length === 0) continue;
+          const totalAmount = p.totalAmount || workers.reduce((s, w) => s + w.salary, 0);
+          const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+          if (!userDoc.exists() || (userDoc.data().balance || 0) < totalAmount) continue;
+          try {
+            await runTransaction(db, async (t) => {
+              const oRef = doc(db, "users", currentUser.uid);
+              const oDoc = await t.get(oRef);
+              if ((oDoc.data().balance || 0) < totalAmount) throw new Error("Insufficient");
+              t.update(oRef, { balance: oDoc.data().balance - totalAmount });
+              for (const w of workers) {
+                const wRef = doc(db, "users", w.userId);
+                const wDoc = await t.get(wRef);
+                if (wDoc.exists()) t.update(wRef, { balance: (wDoc.data().balance || 0) + w.salary });
+              }
+            });
+            await setDoc(doc(collection(db, "transactions")), { userEmail: currentUser.email, userName: userData?.name, type: 'payroll_sent', amount: totalAmount, description: `🤖 Auto-Pay: ${p.name} - ${workers.length} workers`, timestamp: now.toISOString() });
+            for (const w of workers) { await setDoc(doc(collection(db, "notifications")), { userEmail: w.email, message: `💰 Salary: ${formatMoney(w.salary)} from ${userData?.name}`, timestamp: now.toISOString(), read: false }); }
+            await updateDoc(doc(db, "payrolls", pd.id), { lastPaymentDate: now.toISOString() });
+          } catch(e) {}
+        }
+      } catch(e) {}
+    }
+
+    function initPayrollRealtime() {
+      onSnapshot(collection(db, "payrolls"), (snap) => {
+        payrolls = [];
+        snap.forEach(d => { const data = d.data(); if (data.ownerId === currentUser?.uid) payrolls.push({ id: d.id, ...data }); });
+        payrolls.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+        renderPayrolls(); updatePayrollStats();
+      });
+    }
+
+    function updatePayrollStats() {
+      const active = payrolls.filter(p => p.status === 'active');
+      document.getElementById('ibepayActivePayrolls').textContent = active.length;
+      document.getElementById('ibepayTotalWorkers').textContent = active.reduce((s, p) => s + (p.workers?.length || 0), 0);
+      const cost = active.reduce((s, p) => s + (p.totalAmount || 0), 0);
+      document.getElementById('ibepayMonthlyCost').textContent = formatMoney(cost);
+      document.getElementById('payrollMonthlyCost').textContent = formatMoney(cost);
+    }
+
+    function renderPayrolls() {
+      const c = document.getElementById('payrollsList');
+      if (!c) return;
+      if (payrolls.length === 0) { c.innerHTML = '<p style="text-align:center;color:var(--gray);padding:40px;">No payrolls yet.</p>'; return; }
+      c.innerHTML = payrolls.map(p => {
+        const total = p.totalAmount || (p.workers || []).reduce((s, w) => s + (w.salary || 0), 0);
+        const lastPaid = p.lastPaymentDate ? new Date(p.lastPaymentDate).toLocaleDateString() : 'Never';
+        const paymentDate = p.paymentDate ? new Date(p.paymentDate).toLocaleDateString() : 'Not set';
+        const wc = (p.workers || []).length;
+        const today = new Date().toISOString().split('T')[0];
+        const alreadyPaid = p.lastPaymentDate && new Date(p.lastPaymentDate).toISOString().split('T')[0] === today;
+        return `<div class="payroll-card" style="border-left:4px solid ${p.status==='active'?'var(--success)':'var(--warning)'};"><div class="payroll-card-header"><div><h3>${p.name||'Untitled'} ${p.paymentDate?'<span class="auto-badge">🤖 Auto</span>':''}</h3><p style="color:var(--gray);font-size:0.85rem;">👥 ${wc} | 💰 ${formatMoney(total)}/mo | 📅 ${paymentDate} | <span class="status-badge status-${p.status||'active'}">${p.status.toUpperCase()}</span></p><p style="font-size:0.8rem;color:var(--gray);">Last paid: ${lastPaid}${p.paymentDate===today&&!alreadyPaid?' | 🔔 Today':''}${alreadyPaid?' | ✅ Paid today':''}</p></div><div class="payroll-actions"><button class="btn btn-sm btn-primary" onclick="openAddWorkerModal('${p.id}')"><i class="fas fa-user-plus"></i></button><button class="btn btn-sm btn-accent" onclick="openEditPayrollModal('${p.id}')"><i class="fas fa-edit"></i></button><button class="btn btn-sm btn-success" onclick="payNow('${p.id}')">Pay Now</button><button class="btn btn-sm ${p.status==='active'?'btn-danger':'btn-success'}" onclick="togglePayroll('${p.id}')">${p.status==='active'?'Pause':'Activate'}</button><button class="btn btn-sm btn-danger" onclick="deletePayroll('${p.id}','${p.name}')"><i class="fas fa-trash"></i></button></div></div>${wc>0?`<div style="margin-top:12px;">${(p.workers||[]).map((w,i)=>`<div class="worker-list-item" style="background:#f8fafc;"><div class="worker-list-info"><div class="worker-list-avatar">${(w.name||'W').substring(0,2).toUpperCase()}</div><div><strong>${w.name}</strong><span style="font-size:0.75rem;color:var(--gray);">🔢 ${w.accountNumber}</span></div></div><span style="color:var(--success);font-weight:600;">${formatMoney(w.salary)}/mo</span><button class="btn-icon danger" onclick="removeWorkerFromPayroll('${p.id}',${i})"><i class="fas fa-times"></i></button></div>`).join('')}</div>`:''}</div>`;
+      }).join('');
+    }
+
+    window.openEditPayrollModal = (id) => {
+      const p = payrolls.find(x => x.id === id);
+      if (!p) return;
+      editingPayrollId = id;
+      document.getElementById('editPayrollName').value = p.name || '';
+      document.getElementById('editPayrollPaymentDate').value = p.paymentDate || '';
+      openModal('editPayrollModal');
+    };
+    document.getElementById('saveEditPayrollBtn').addEventListener('click', async () => {
+      const name = document.getElementById('editPayrollName').value.trim();
+      if (!name) return alert('Enter name');
+      await updateDoc(doc(db, "payrolls", editingPayrollId), { name, paymentDate: document.getElementById('editPayrollPaymentDate').value });
+      closeModal('editPayrollModal'); alert('✅ Updated!');
+    });
+    window.openAddWorkerModal = (id) => {
+      const p = payrolls.find(x => x.id === id);
+      if (!p) return;
+      currentPayrollForAddWorker = p;
+      document.getElementById('modalPayrollName').textContent = `Payroll: ${p.name}`;
+      document.getElementById('modalWorkerAccInput').value = '';
+      document.getElementById('modalWorkerSalary').value = '';
+      document.getElementById('modalWorkerPreview').style.display = 'none';
+      document.getElementById('modalWorkerNotFound').style.display = 'none';
+      foundModalWorker = null;
+      openModal('addWorkerModal');
+    };
+    document.getElementById('modalWorkerAccInput').addEventListener('input', async (e) => {
+      const acc = e.target.value.trim();
+      if (acc.length < 10) { document.getElementById('modalWorkerPreview').style.display = 'none'; document.getElementById('modalWorkerNotFound').style.display = 'none'; foundModalWorker = null; return; }
+      if (currentPayrollForAddWorker?.workers?.some(w => w.accountNumber === acc)) { document.getElementById('modalWorkerPreview').style.display = 'none'; document.getElementById('modalWorkerNotFound').style.display = 'block'; document.getElementById('modalWorkerNotFound').innerHTML = 'Already added!'; foundModalWorker = null; return; }
+      const snap = await getDocs(query(collection(db, "users"), where("accountNumber", "==", acc)));
+      if (snap.empty) { document.getElementById('modalWorkerPreview').style.display = 'none'; document.getElementById('modalWorkerNotFound').style.display = 'block'; document.getElementById('modalWorkerNotFound').innerHTML = 'Not found!'; foundModalWorker = null; }
+      else { const d = snap.docs[0]; foundModalWorker = { id: d.id, ...d.data() }; document.getElementById('modalWorkerNotFound').style.display = 'none'; document.getElementById('modalWorkerPreview').style.display = 'block'; document.getElementById('modalWorkerPreview').innerHTML = `<strong>${foundModalWorker.name}</strong>`; }
+    });
+    document.getElementById('confirmAddWorkerBtn').addEventListener('click', async () => {
+      if (!foundModalWorker) return alert('Enter valid account');
+      const salary = parseFloat(document.getElementById('modalWorkerSalary').value);
+      if (!salary || salary <= 0) return alert('Enter valid salary');
+      const newWorkers = [...(currentPayrollForAddWorker.workers || []), { accountNumber: foundModalWorker.accountNumber, name: foundModalWorker.name, email: foundModalWorker.email, userId: foundModalWorker.id, salary }];
+      await updateDoc(doc(db, "payrolls", currentPayrollForAddWorker.id), { workers: newWorkers, totalAmount: newWorkers.reduce((s, w) => s + w.salary, 0) });
+      closeModal('addWorkerModal'); alert('✅ Added!');
+    });
+    window.removeWorkerFromPayroll = async (id, i) => {
+      const p = payrolls.find(x => x.id === id);
+      if (!p) return;
+      const nw = [...p.workers]; nw.splice(i, 1);
+      await updateDoc(doc(db, "payrolls", id), { workers: nw, totalAmount: nw.reduce((s, w) => s + w.salary, 0) });
+    };
+    window.payNow = async (id) => {
+      const p = payrolls.find(x => x.id === id);
+      if (!p) return;
+      const workers = p.workers || [];
+      const total = p.totalAmount || workers.reduce((s, w) => s + w.salary, 0);
+      if (!confirm(`Pay ${workers.length} workers?\nTotal: ${formatMoney(total)}`)) return;
+      if ((userData?.balance || 0) < total) return alert('Insufficient!');
+      await runTransaction(db, async (t) => {
+        const oRef = doc(db, "users", currentUser.uid);
+        const oDoc = await t.get(oRef);
+        if ((oDoc.data().balance || 0) < total) throw new Error("Insufficient");
+        t.update(oRef, { balance: oDoc.data().balance - total });
+        for (const w of workers) { const wRef = doc(db, "users", w.userId); const wDoc = await t.get(wRef); if (wDoc.exists()) t.update(wRef, { balance: (wDoc.data().balance || 0) + w.salary }); }
+      });
+      await setDoc(doc(collection(db, "transactions")), { userEmail: currentUser.email, userName: userData?.name, type: 'payroll_sent', amount: total, description: `Payroll: ${p.name}`, timestamp: new Date().toISOString() });
+      for (const w of workers) { await setDoc(doc(collection(db, "notifications")), { userEmail: w.email, message: `💰 Salary: ${formatMoney(w.salary)} from ${userData?.name}`, timestamp: new Date().toISOString(), read: false }); }
+      await updateDoc(doc(db, "payrolls", id), { lastPaymentDate: new Date().toISOString() });
+      alert('✅ Paid!');
+    };
+    window.togglePayroll = async (id) => { const p = payrolls.find(x => x.id === id); if (!p) return; await updateDoc(doc(db, "payrolls", id), { status: p.status === 'active' ? 'paused' : 'active' }); };
+    window.deletePayroll = async (id, name) => { if (!confirm(`Delete "${name}"?`)) return; await deleteDoc(doc(db, "payrolls", id)); };
+
+    document.querySelectorAll('#ibepayTabs .tab').forEach(tab => { tab.addEventListener('click', () => { document.querySelectorAll('#ibepayTabs .tab').forEach(t => t.classList.remove('active')); tab.classList.add('active'); document.getElementById('ibepay-payrolls-tab').style.display = tab.dataset.tab === 'payrolls' ? 'block' : 'none'; document.getElementById('ibepay-create-tab').style.display = tab.dataset.tab === 'create' ? 'block' : 'none'; }); });
+    document.getElementById('workerAccInput').addEventListener('input', async (e) => {
+      const acc = e.target.value.trim();
+      if (acc.length < 10) { document.getElementById('workerPreview').style.display = 'none'; document.getElementById('workerNotFound').style.display = 'none'; foundWorkerForAdd = null; return; }
+      if (tempWorkers.some(w => w.accountNumber === acc)) { document.getElementById('workerPreview').style.display = 'none'; document.getElementById('workerNotFound').style.display = 'block'; document.getElementById('workerNotFound').innerHTML = 'Already added!'; foundWorkerForAdd = null; return; }
+      const snap = await getDocs(query(collection(db, "users"), where("accountNumber", "==", acc)));
+      if (snap.empty) { document.getElementById('workerPreview').style.display = 'none'; document.getElementById('workerNotFound').style.display = 'block'; document.getElementById('workerNotFound').innerHTML = 'Not found!'; foundWorkerForAdd = null; }
+      else { const d = snap.docs[0]; foundWorkerForAdd = { id: d.id, ...d.data() }; document.getElementById('workerNotFound').style.display = 'none'; document.getElementById('workerPreview').style.display = 'block'; document.getElementById('workerPreview').innerHTML = `<strong>${foundWorkerForAdd.name}</strong>`; }
+    });
+    document.getElementById('addWorkerBtn').addEventListener('click', () => {
+      if (!foundWorkerForAdd) return alert('Enter valid account');
+      const salary = parseFloat(document.getElementById('workerSalaryInput').value);
+      if (!salary || salary <= 0) return alert('Enter valid salary');
+      tempWorkers.push({ accountNumber: foundWorkerForAdd.accountNumber, name: foundWorkerForAdd.name, email: foundWorkerForAdd.email, userId: foundWorkerForAdd.id, salary });
+      document.getElementById('workerAccInput').value = ''; document.getElementById('workerSalaryInput').value = '';
+      document.getElementById('workerPreview').style.display = 'none'; foundWorkerForAdd = null;
+      renderTempWorkers();
+    });
+    function renderTempWorkers() {
+      const c = document.getElementById('workersList'), td = document.getElementById('totalSalaryDisplay');
+      if (tempWorkers.length === 0) { c.innerHTML = '<p style="color:var(--gray);text-align:center;">No workers</p>'; td.textContent = 'TSh 0'; return; }
+      td.textContent = formatMoney(tempWorkers.reduce((s, w) => s + w.salary, 0));
+      c.innerHTML = tempWorkers.map((w, i) => `<div class="worker-list-item"><div class="worker-list-info"><div class="worker-list-avatar">${(w.name||'W').substring(0,2).toUpperCase()}</div><div><strong>${w.name}</strong></div></div><span style="color:var(--success);font-weight:600;">${formatMoney(w.salary)}/mo</span><button class="btn-icon danger" onclick="removeTempWorker(${i})"><i class="fas fa-times"></i></button></div>`).join('');
+    }
+    window.removeTempWorker = (i) => { tempWorkers.splice(i, 1); renderTempWorkers(); };
+    document.getElementById('createPayrollBtn').addEventListener('click', async () => {
+      const name = document.getElementById('payrollName').value.trim();
+      const paymentDate = document.getElementById('payrollPaymentDate').value;
+      if (!name) return alert('Enter name');
+      if (tempWorkers.length === 0) return alert('Add workers');
+      const total = tempWorkers.reduce((s, w) => s + w.salary, 0);
+      if (!confirm(`Create "${name}"?\nTotal: ${formatMoney(total)}`)) return;
+      await addDoc(collection(db, "payrolls"), { ownerId: currentUser.uid, ownerEmail: currentUser.email, ownerName: userData?.name, name, paymentDate: paymentDate || null, workers: JSON.parse(JSON.stringify(tempWorkers)), totalAmount: total, status: 'active', createdAt: new Date().toISOString(), lastPaymentDate: null });
+      document.getElementById('payrollName').value = ''; document.getElementById('payrollPaymentDate').value = new Date().toISOString().split('T')[0];
+      tempWorkers = []; renderTempWorkers();
+      document.querySelector('#ibepayTabs [data-tab="payrolls"]').click();
+      alert('✅ Created!');
+    });
+
+    window.openModal = (id) => document.getElementById(id).style.display = 'flex';
+    window.closeModal = (id) => document.getElementById(id).style.display = 'none';
+
+    // ============ TRANSACTION FILTERS & PDF ============
+    window.filterClientTransactions = function() {
+      let filtered = [...allTransactions];
+      const search = document.getElementById('clientTransSearch')?.value.toLowerCase() || '';
+      const type = document.getElementById('clientTransType')?.value || 'all';
+      const month = document.getElementById('clientTransMonth')?.value;
+      const year = document.getElementById('clientTransYear')?.value;
+      
+      if (search) filtered = filtered.filter(t => (t.recipientName||'').toLowerCase().includes(search) || (t.senderName||'').toLowerCase().includes(search) || (t.agentName||'').toLowerCase().includes(search) || (t.description||'').toLowerCase().includes(search) || (t.type||'').toLowerCase().includes(search));
+      if (type !== 'all') filtered = filtered.filter(t => t.type === type);
+      if (month !== 'all') filtered = filtered.filter(t => new Date(t.timestamp).getMonth() === parseInt(month));
+      if (year !== 'all') filtered = filtered.filter(t => new Date(t.timestamp).getFullYear() === parseInt(year));
+      
+      const tb = document.getElementById('clientAllTransactionsBody');
+      const countEl = document.getElementById('clientTransCount');
+      if (tb) tb.innerHTML = filtered.map(t => {
+        const typeLabel = getTransactionTypeLabel(t);
+        const details = getTransactionDetails(t);
+        let color = 'var(--success)', sign = '+';
+        if (t.type === 'withdrawal' || t.type === 'transfer_sent' || t.type === 'loan_repayment' || t.type === 'loan_auto_deduct' || t.type === 'payroll_sent') { sign = '-'; color = 'var(--danger)'; }
+        else if (t.type === 'loan_disbursement') { sign = '📋'; color = '#92400e'; }
+        return `<tr><td>${new Date(t.timestamp).toLocaleDateString()}</td><td style="color:${color};font-weight:500;">${typeLabel}</td><td>${details}</td><td style="font-weight:600;color:${color};">${sign==='📋'?'📋':sign}${formatMoney(Math.abs(t.amount))}</td></tr>`;
+      }).join('') || '<tr><td colspan="4" style="text-align:center;padding:20px;">No transactions found</td></tr>';
+      if (countEl) countEl.textContent = `${filtered.length} transaction${filtered.length !== 1 ? 's' : ''}`;
+    };
+
+    window.clearClientFilters = function() {
+      document.getElementById('clientTransSearch').value = '';
+      document.getElementById('clientTransType').value = 'all';
+      document.getElementById('clientTransMonth').value = 'all';
+      document.getElementById('clientTransYear').value = 'all';
+      filterClientTransactions();
+    };
+
+    window.downloadClientTransactionsPDF = function() {
+      let filtered = [...allTransactions];
+      const search = document.getElementById('clientTransSearch')?.value.toLowerCase() || '';
+      const type = document.getElementById('clientTransType')?.value || 'all';
+      const month = document.getElementById('clientTransMonth')?.value;
+      const year = document.getElementById('clientTransYear')?.value;
+      if (search) filtered = filtered.filter(t => (t.recipientName||'').toLowerCase().includes(search) || (t.senderName||'').toLowerCase().includes(search) || (t.description||'').toLowerCase().includes(search));
+      if (type !== 'all') filtered = filtered.filter(t => t.type === type);
+      if (month !== 'all') filtered = filtered.filter(t => new Date(t.timestamp).getMonth() === parseInt(month));
+      if (year !== 'all') filtered = filtered.filter(t => new Date(t.timestamp).getFullYear() === parseInt(year));
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.setFontSize(16); doc.text('IBE Bank - Transaction Report', 14, 20);
+      doc.setFontSize(10); doc.text(`Client: ${userData?.name||'Client'} (${userData?.accountNumber||'---'})`, 14, 30);
+      doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 36);
+      doc.text(`Total: ${filtered.length} transactions`, 14, 42);
+      const rows = filtered.map(t => {
+        let sign = '+';
+        if (t.type === 'withdrawal' || t.type === 'transfer_sent' || t.type === 'loan_repayment' || t.type === 'loan_auto_deduct' || t.type === 'payroll_sent') sign = '-';
+        return [new Date(t.timestamp).toLocaleDateString(), getTransactionTypeLabel(t), getTransactionDetails(t), sign + formatMoney(Math.abs(t.amount))];
+      });
+      doc.autoTable({ startY: 48, head: [['Date', 'Type', 'Details', 'Amount']], body: rows, theme: 'striped', headStyles: { fillColor: [26, 58, 92] } });
+      doc.save(`IBE_Transactions_${new Date().toISOString().split('T')[0]}.pdf`);
+    };
+
+    function updateExpectedBalance() {
+      const bal=userData?.balance||0, totalDep=allUsers.reduce((s,u)=>s+(u.balance||0),0), poolPct=totalDep>0?(bal/totalDep):0;
+      let totalPendingInt=0; allActiveLoans.forEach(l=>{const orig=l.amount||0,rem=l.remainingAmount||orig;if(rem>orig)totalPendingInt+=(rem-orig);});
+      const pendingProfit=totalPendingInt*poolPct, userLoans=allActiveLoans.filter(l=>l.userEmail===currentUser?.email);
+      const loanDebt=userLoans.reduce((s,l)=>s+(l.remainingAmount||l.amount||0),0), expected=bal+pendingProfit-loanDebt;
+      document.getElementById('expectedBalance').textContent=formatMoney(expected);
+      document.getElementById('expectedBalance').style.color=expected<0?'var(--danger)':expected>bal?'var(--success)':'var(--dark)';
+      document.getElementById('expectedBreakdown').innerHTML=`${formatMoney(bal)} + ${formatMoney(pendingProfit)} - ${formatMoney(loanDebt)} = <strong>${formatMoney(expected)}</strong> | Pool: ${(poolPct*100).toFixed(2)}%`;
+    }
+    function updateNetBalance() {
+      const bal=userData?.balance||0, dt=document.getElementById('activeLoanDebt').textContent;
+      let debt=0; if(dt&&dt!=='TSh 0'){const m=dt.match(/[\d,]+/); if(m)debt=parseFloat(m[0].replace(/,/g,''));}
+      document.getElementById('netBalance').textContent=formatMoney(bal-debt);
+      document.getElementById('netBalance').style.color=(bal-debt)<0?'var(--danger)':'var(--dark)';
+      document.getElementById('debtWarning').style.display=debt>0?'block':'none';
+    }
+    function updateProfitStats(){document.getElementById('totalProfitShare').textContent=formatMoney(allTransactions.filter(t=>t.type==='profit_share').reduce((s,t)=>s+t.amount,0));}
+
+    function renderTransactions(transactions) {
+      const renderItem=(t)=>{
+        let icon='plus-circle',sign='+',cls='incoming',title=getTransactionTypeLabel(t);
+        if(t.type==='withdrawal'){icon='arrow-up';sign='-';cls='outgoing';}
+        else if(t.type==='transfer_sent'){icon='paper-plane';sign='-';cls='outgoing';}
+        else if(t.type==='transfer_received'){icon='arrow-down';sign='+';cls='incoming';}
+        else if(t.type==='agent_deposit_received'){icon='store';sign='+';cls='incoming';}
+        else if(t.type==='profit_share'){icon='gift';sign='+';cls='incoming';}
+        else if(t.type==='loan_disbursement'){icon='hand-holding-usd';sign='📋';cls='neutral';}
+        else if(t.type==='loan_repayment'||t.type==='loan_auto_deduct'){icon='money-bill';sign='-';cls='outgoing';}
+        else if(t.type==='payroll_sent'){icon='people-arrows';sign='-';cls='outgoing';}
+        else if(t.type==='payroll_received'){icon='people-arrows';sign='+';cls='incoming';}
+        return `<div class="transaction-item"><div style="display:flex;align-items:center;gap:12px;"><div class="transaction-icon ${cls}"><i class="fas fa-${icon}"></i></div><div class="transaction-info"><div class="transaction-title">${title}</div><div class="transaction-date">${new Date(t.timestamp).toLocaleDateString()}</div><div class="transaction-note">${getTransactionDetails(t)}</div></div></div><div class="transaction-amount ${sign==='-'?'amount-negative':sign==='📋'?'amount-neutral':'amount-positive'}">${sign==='📋'?'📋':sign}${formatMoney(Math.abs(t.amount))}</div></div>`;
+      };
+      document.getElementById('recentTransactions').innerHTML=transactions.slice(0,5).map(renderItem).join('')||'<p style="color:var(--gray);text-align:center;padding:20px;">No transactions</p>';
+    }
+
+    function updateChart(){const ctx=document.getElementById('balanceHistoryChart').getContext('2d');if(chart)chart.destroy();const days=Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-(6-i));return d.toLocaleDateString();});chart=new Chart(ctx,{type:'line',data:{labels:days,datasets:[{data:days.map(()=>userData?.balance||0),borderColor:'#1a3a5c',backgroundColor:'rgba(26,58,92,0.08)',tension:0.4,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}});}
+
+    function renderActiveLoans(loans) {
+      const td=loans.reduce((s,l)=>s+(l.remainingAmount||l.amount),0);
+      document.getElementById('activeLoanDebt').textContent=formatMoney(td);document.getElementById('loanSectionDebt').textContent=formatMoney(td);
+      if(loans.length===0){document.getElementById('activeLoanAmount').textContent='TSh 0';document.getElementById('nextPaymentDue').textContent='—';document.getElementById('activeLoansList').innerHTML='<p style="text-align:center;color:var(--gray);padding:20px;">No active loans</p>';return;}
+      document.getElementById('activeLoanAmount').textContent=formatMoney(td);document.getElementById('nextPaymentDue').textContent=new Date(loans[0].dueDate).toLocaleDateString();
+      document.getElementById('activeLoansList').innerHTML=loans.map(l=>{const due=new Date(l.dueDate),now=new Date(),overdue=now>due,daysLeft=Math.ceil((due-now)/(1000*60*60*24)),rem=l.remainingAmount||l.amount,orig=l.amount;return`<div style="padding:14px;background:#f7fafc;border-radius:10px;margin-bottom:8px;border-left:4px solid ${overdue?'var(--danger)':'var(--success)'};"><div style="display:flex;justify-content:space-between;"><span><strong>Loan:</strong> ${formatMoney(orig)}</span><span><strong>Remaining:</strong> ${formatMoney(rem)}</span></div>${rem>orig?`<div style="color:var(--danger);">Interest: ${formatMoney(rem-orig)}</div>`:''}<div style="display:flex;justify-content:space-between;margin-top:8px;"><span>Due: ${due.toLocaleDateString()} (${overdue?'OVERDUE':daysLeft+' days'})</span><span class="status-badge ${overdue?'status-overdue':'status-active'}">${overdue?'OVERDUE':'Active'}</span></div></div>`;}).join('');
+    }
+
+    async function checkAndAutoDeduct(loans){const now=new Date();for(const l of loans){const due=new Date(l.dueDate);if(now>=due&&(l.remainingAmount||l.amount)>0){const lastD=l.lastAutoDeductDate?new Date(l.lastAutoDeductDate):null;if(!lastD||(now-lastD)/(1000*60*60*24)>=1){const ub=userData?.balance||0,deduct=Math.min(l.remainingAmount||l.amount,Math.max(0,ub));if(deduct>0){await updateDoc(doc(db,"users",currentUser.uid),{balance:ub-deduct});await updateDoc(doc(db,"loans",l.id),{remainingAmount:(l.remainingAmount||l.amount)-deduct,status:(l.remainingAmount||l.amount)-deduct<=0?'paid':'active',lastAutoDeductDate:now.toISOString()});await setDoc(doc(collection(db,"transactions")),{userEmail:currentUser.email,userName:userData?.name,type:'loan_auto_deduct',amount:deduct,timestamp:now.toISOString()});}else{const s=await getDoc(doc(db,"settings","interest"));await updateDoc(doc(db,"loans",l.id),{remainingAmount:(l.remainingAmount||l.amount)*(1+((s.exists()?s.data().loanRate||10:10)/100)),status:'overdue',lastAutoDeductDate:now.toISOString()});}}}}}
+
+    // Navigation
+    document.querySelectorAll('.nav-item').forEach(item=>{item.addEventListener('click',()=>{document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));item.classList.add('active');document.querySelectorAll('.content-section').forEach(s=>s.classList.remove('active'));const sec=document.getElementById(`${item.dataset.section}-section`);if(sec)sec.classList.add('active');document.getElementById('pageTitle').textContent=item.textContent.trim().replace(/\d+/,'').trim();if(window.innerWidth<=768)document.getElementById('sidebar').classList.remove('mobile-open');});});
+    document.getElementById('menuToggle').addEventListener('click',()=>document.getElementById('sidebar').classList.toggle('mobile-open'));
+
+    // Transfer
+    window.onTransferTypeChange=function(){transferType=document.getElementById('transferType').value;document.getElementById('recipientAccount').value='';resetTransferPreview();};
+    document.getElementById('recipientAccount').addEventListener('input',async(e)=>{const acc=e.target.value.trim();if(acc.length<10){resetTransferPreview();return;}if(acc===userData?.accountNumber){resetTransferPreview();document.getElementById('recipientNotFound').style.display='block';return;}let snap;const tt=document.getElementById('transferType').value;if(tt==='agent'){snap=await getDocs(query(collection(db,"agents"),where("accountNumber","==",acc),where("status","==","active")));}else{snap=await getDocs(query(collection(db,"users"),where("accountNumber","==",acc)));}if(snap.empty){resetTransferPreview();document.getElementById('recipientNotFound').style.display='block';}else{const d=snap.docs[0];foundRecipientData={id:d.id,...d.data(),isAgent:tt==='agent'};document.getElementById('recipientInitials').textContent=(foundRecipientData.name||'U').substring(0,2).toUpperCase();document.getElementById('recipientName').textContent=foundRecipientData.name;document.getElementById('recipientType').textContent=foundRecipientData.isAgent?'🏪 Agent':'✅ Client';document.getElementById('recipientPreview').style.display='block';document.getElementById('recipientNotFound').style.display='none';transferValid=true;updateTransferSummary();}});
+    function resetTransferPreview(){document.getElementById('recipientPreview').style.display='none';document.getElementById('recipientNotFound').style.display='none';document.getElementById('transferSummary').style.display='none';document.getElementById('sendTransferBtn').disabled=true;foundRecipientData=null;transferValid=false;}
+    document.getElementById('transferAmount').addEventListener('input',updateTransferSummary);
+    document.getElementById('transferDescription').addEventListener('input',updateTransferSummary);
+    function updateTransferSummary(){const amt=parseFloat(document.getElementById('transferAmount').value)||0,desc=document.getElementById('transferDescription').value||'No description';if(transferValid&&amt>0){document.getElementById('summaryFrom').textContent=`${userData?.name||'You'} (${userData?.accountNumber})`;document.getElementById('summaryTo').textContent=`${foundRecipientData.name} (${foundRecipientData.accountNumber})`;document.getElementById('summaryAmount').textContent=formatMoney(amt);document.getElementById('summaryDescription').textContent=desc;const nb=(userData?.balance||0)-amt;document.getElementById('summaryNewBalance').textContent=formatMoney(nb);document.getElementById('summaryNewBalance').style.color=nb<0?'var(--danger)':'var(--dark)';document.getElementById('transferSummary').style.display='block';document.getElementById('sendTransferBtn').disabled=!(amt<=(userData?.balance||0)&&amt>0);}else{document.getElementById('transferSummary').style.display='none';document.getElementById('sendTransferBtn').disabled=true;}}
+    document.getElementById('sendTransferBtn').addEventListener('click',async()=>{const amt=parseFloat(document.getElementById('transferAmount').value),desc=document.getElementById('transferDescription').value||'Transfer';if(!amt||amt<=0||amt>(userData?.balance||0)||!foundRecipientData)return;if(!confirm(`Transfer ${formatMoney(amt)} to ${foundRecipientData.name}?`))return;const btn=document.getElementById('sendTransferBtn');btn.disabled=true;btn.textContent='Sending...';try{const rc=foundRecipientData.isAgent?'agents':'users';await runTransaction(db,async(t)=>{const sr=doc(db,"users",currentUser.uid),rr=doc(db,rc,foundRecipientData.id);const sd=await t.get(sr),rd=await t.get(rr);if(!sd.exists()||!rd.exists())throw new Error("Not found");const sb=sd.data().balance||0,rb=rd.data().balance||0;if(sb<amt)throw new Error("Insufficient");t.update(sr,{balance:sb-amt});t.update(rr,{balance:rb+amt});});await setDoc(doc(collection(db,"transactions")),{userEmail:currentUser.email,userName:userData?.name,type:'transfer_sent',amount:amt,recipientName:foundRecipientData.name,recipientEmail:foundRecipientData.email,recipientIsAgent:foundRecipientData.isAgent,description:desc,timestamp:new Date().toISOString()});if(!foundRecipientData.isAgent){await setDoc(doc(collection(db,"transactions")),{userEmail:foundRecipientData.email,userName:foundRecipientData.name,type:'transfer_received',amount:amt,senderName:userData?.name,senderEmail:currentUser.email,description:desc,timestamp:new Date().toISOString()});}document.getElementById('recipientAccount').value=document.getElementById('transferAmount').value=document.getElementById('transferDescription').value='';resetTransferPreview();alert('✅ Sent!');}catch(e){alert('❌ '+e.message);}finally{btn.disabled=false;btn.textContent='Send Transfer';}});
+
+    // Loan
+    document.getElementById('calculateLoanBtn').addEventListener('click',()=>{const amt=parseFloat(document.getElementById('calcLoanAmount').value)||0,dur=parseInt(document.getElementById('calcLoanDuration').value)||30;if(amt<=0)return;const months=dur/30,rate=0.10*months,interest=amt*rate,total=amt+interest;document.getElementById('loanCalcPrincipal').textContent=formatMoney(amt);document.getElementById('loanCalcInterest').textContent=formatMoney(interest);document.getElementById('loanCalcTotal').textContent=formatMoney(total);document.getElementById('loanCalcTotalRepayment').textContent=formatMoney(total);document.getElementById('loanCalcResult').style.display='block';document.getElementById('loanAmount').value=amt;document.getElementById('loanDuration').value=dur;});
+    document.getElementById('requestLoanBtn').addEventListener('click',async()=>{const amt=parseFloat(document.getElementById('loanAmount').value),dur=parseInt(document.getElementById('loanDuration').value);if(!amt||amt<=0)return alert('Enter amount');const months=dur/30,rate=0.10*months,interest=amt*rate,total=amt+interest;if(!confirm(`Loan: ${formatMoney(amt)}\nInterest: ${formatMoney(interest)}\nTotal: ${formatMoney(total)}`))return;await setDoc(doc(collection(db,"loanRequests")),{userEmail:currentUser.email,userName:userData?.name,amount:amt,duration:dur,interestRate:rate,interestAmount:interest,totalRepayment:total,status:'pending',timestamp:new Date().toISOString()});document.getElementById('loanAmount').value='';alert('✅ Submitted!');});
+
+    // Calculator
+    document.getElementById('calculateProfitBtn').addEventListener('click',()=>{const ti=parseFloat(document.getElementById('calcTotalInterest').value)||0,yb=parseFloat(document.getElementById('calcYourBalance').value)||0,td=parseFloat(document.getElementById('calcTotalDeposits').value)||1;document.getElementById('profitShareAmount').textContent=formatMoney(ti*(yb/td));document.getElementById('profitCalcResult').style.display='block';});
+
+    // Request
+    document.getElementById('submitRequestBtn').addEventListener('click',async()=>{const type=document.getElementById('requestType').value,amt=parseFloat(document.getElementById('requestAmount').value);if(!amt||amt<=0)return alert('Invalid');if(type==='withdraw'&&amt>(userData?.balance||0))return alert('Insufficient!');await setDoc(doc(collection(db,"requests")),{userEmail:currentUser.email,userName:userData?.name,type,amount:amt,note:document.getElementById('requestNote').value,status:'pending',timestamp:new Date().toISOString()});document.getElementById('requestAmount').value=document.getElementById('requestNote').value='';alert('✅ Submitted!');});
+    window.openRequestModal=(type)=>{currentRequestType=type;document.getElementById('modalTitle').textContent=`Request ${type}`;document.getElementById('requestModal').style.display='flex';};
+    window.closeRequestModal=()=>{document.getElementById('requestModal').style.display='none';};
+    document.getElementById('modalSubmitBtn').addEventListener('click',async()=>{const amt=parseFloat(document.getElementById('modalAmount').value);if(!amt||amt<=0)return alert('Invalid');if(currentRequestType==='withdraw'&&amt>(userData?.balance||0))return alert('Insufficient!');await setDoc(doc(collection(db,"requests")),{userEmail:currentUser.email,userName:userData?.name,type:currentRequestType,amount:amt,note:document.getElementById('modalNote').value,status:'pending',timestamp:new Date().toISOString()});closeRequestModal();alert('✅ Submitted!');});
+
+    document.getElementById('logoutBtn').addEventListener('click',async()=>{await signOut(auth);window.location.replace('index.html');});
+    window.markAllRead=async()=>{const snap=await getDocs(query(collection(db,"notifications"),where("userEmail","==",currentUser.email),where("read","==",false)));snap.forEach(async(d)=>{await updateDoc(d.ref,{read:true});});};
+  </script>
+</body>
+</html>

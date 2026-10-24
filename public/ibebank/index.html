@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+  <title>IBE Bank · Innovators, Businessmen & Entrepreneurs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    :root {
+      --primary: #1a3a5c;
+      --primary-light: #2a5a8c;
+      --primary-dark: #0f2842;
+      --accent: #c9a23d;
+      --accent-light: #e0c06c;
+      --accent-dark: #a07f2a;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --dark: #1e1e2e;
+      --light: #f8fafc;
+      --white: #ffffff;
+      --gray: #6b7280;
+      --gray-light: #e5e7eb;
+    }
+    
+    body {
+      font-family: 'Inter', sans-serif;
+      color: var(--dark);
+      line-height: 1.6;
+      overflow-x: hidden;
+      background: var(--light);
+    }
+    
+    /* Header & Navigation */
+    .header {
+      position: fixed;
+      top: 0; left: 0; width: 100%;
+      z-index: 1000; padding: 15px 0;
+      transition: all 0.3s; background: transparent;
+    }
+    
+    .header.scrolled {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 5px 30px rgba(0, 0, 0, 0.1);
+      padding: 10px 0;
+    }
+    
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+
+    .header .container { max-width: 1600px; }
+    
+    .nav { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+    
+    .logo { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+    
+    .logo-icon {
+      width: 45px; height: 45px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-size: 1.5rem; font-weight: 700;
+    }
+    
+    .logo-text { font-size: 1.5rem; font-weight: 700; color: var(--primary); }
+    .logo-text span { color: var(--accent); }
+    
+    .nav-links { display: flex; gap: clamp(10px, 1.2vw, 20px); align-items: center; flex-shrink: 0; }
+    .nav-links a { text-decoration: none; color: var(--dark); font-weight: 500; transition: color 0.3s; }
+    .nav-links a { white-space: nowrap; }
+    .nav-links a:hover { color: var(--primary); }
+    
+    .nav-buttons { display: flex; gap: 8px; flex-wrap: nowrap; flex-shrink: 0; }
+    .nav-buttons .school-return { padding: 7px 11px; font-size: 0.78rem; white-space: nowrap; }
+    
+    .btn {
+      padding: 10px 20px; border-radius: 50px; font-weight: 600; cursor: pointer;
+      transition: all 0.3s; border: none; font-size: 0.9rem;
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      text-decoration: none;
+    }
+    
+    .btn-outline { background: transparent; border: 2px solid var(--primary); color: var(--primary); }
+    .btn-outline:hover { background: var(--primary); color: white; }
+    
+    .btn-primary { background: var(--primary); color: white; box-shadow: 0 5px 15px rgba(26, 58, 92, 0.3); }
+    .btn-primary:hover { background: var(--primary-dark); transform: translateY(-2px); }
+    
+    .btn-accent { background: var(--accent); color: var(--dark); }
+    .btn-accent:hover { background: var(--accent-dark); color: white; }
+    
+    .btn-agent { background: #0891b2; color: white; box-shadow: 0 5px 15px rgba(8, 145, 178, 0.3); }
+    .btn-agent:hover { background: #0e7490; transform: translateY(-2px); }
+    
+    .btn-success { background: var(--success); color: white; }
+    
+    .mobile-menu-btn { display: none; background: none; border: none; font-size: 1.5rem; color: var(--primary); cursor: pointer; }
+    
+    /* Mobile Menu */
+    .mobile-menu {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100vh;
+      background: white; z-index: 2000; padding: 20px;
+      transform: translateX(-100%); transition: transform 0.3s;
+    }
+    .mobile-menu.active { display: block; transform: translateX(0); }
+    .mobile-menu-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+    .mobile-menu-close { background: none; border: none; font-size: 1.5rem; color: var(--primary); cursor: pointer; }
+    .mobile-menu-links { display: flex; flex-direction: column; gap: 20px; }
+    .mobile-menu-links a { text-decoration: none; color: var(--dark); font-size: 1.2rem; font-weight: 500; padding: 10px 0; border-bottom: 1px solid var(--gray-light); }
+    .mobile-menu-links a.school-return { align-self: flex-start; width: auto; margin-top: 4px; padding: 9px 15px; border: 2px solid var(--primary); border-radius: 50px; color: var(--primary); font-size: 0.85rem; line-height: 1.2; justify-content: center; }
+    
+    /* Hero Section */
+    .hero {
+      min-height: 100vh; display: flex; align-items: center;
+      position: relative; isolation: isolate;
+      background: url("./ibebank-background.png") 30% center / cover no-repeat;
+      padding-top: 80px;
+    }
+
+    .hero::before {
+      content: ""; position: absolute; inset: 0; z-index: -1;
+      background: linear-gradient(90deg, rgba(255,255,255,0.68) 0%, rgba(255,255,255,0.48) 48%, rgba(255,255,255,0.08) 100%);
+    }
+    
+    .hero-content { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; align-items: center; }
+    
+    .hero-text h1 { font-size: 3.5rem; font-weight: 800; line-height: 1.2; margin-bottom: 20px; color: var(--primary); }
+    .hero-text h1 span { color: var(--accent); }
+    .hero-text p { font-size: 1.2rem; color: var(--gray); margin-bottom: 30px; }
+    
+    .hero-stats { display: flex; gap: 40px; margin-top: 40px; flex-wrap: wrap; }
+    .stat-item h3 { font-size: 2rem; color: var(--primary); }
+    .stat-item p { font-size: 0.9rem; margin: 0; }
+    
+    .hero-card { background: rgba(255,255,255,0.84); backdrop-filter: blur(5px); border-radius: 30px; padding: 40px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); }
+    
+    /* Sliding Auth Forms */
+    .auth-container { position: relative; overflow: hidden; min-height: 520px; }
+    
+    .auth-slider {
+      display: flex; width: 300%;
+      transition: transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    }
+    
+    .auth-slider.login-active { transform: translateX(0); }
+    .auth-slider.register-active { transform: translateX(-33.33%); }
+    .auth-slider.agent-active { transform: translateX(-66.66%); }
+    
+    .auth-form { width: 33.33%; padding: 10px; }
+    
+    .auth-form h2 { margin-bottom: 25px; color: var(--primary); display: flex; align-items: center; gap: 10px; }
+    
+    .form-group { margin-bottom: 18px; }
+    .form-group label { display: block; margin-bottom: 6px; font-weight: 500; color: var(--dark); }
+    
+    .password-wrapper { position: relative; }
+    .password-wrapper input { width: 100%; padding: 12px 40px 12px 16px; border: 2px solid var(--gray-light); border-radius: 10px; font-size: 1rem; }
+    .form-group input, .form-group select { width: 100%; padding: 12px 16px; border: 2px solid var(--gray-light); border-radius: 10px; font-size: 1rem; }
+    .form-group input:focus, .form-group select:focus { outline: none; border-color: var(--primary); }
+    
+    .password-toggle { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); cursor: pointer; color: var(--gray); }
+    .password-toggle:hover { color: var(--primary); }
+    
+    .forgot-password { text-align: right; margin-top: 5px; }
+    .forgot-password a { color: var(--primary); text-decoration: none; font-size: 0.85rem; font-weight: 500; cursor: pointer; }
+    
+    .auth-footer { text-align: center; margin-top: 20px; }
+    .auth-footer a { color: var(--primary); text-decoration: none; font-weight: 600; cursor: pointer; }
+    
+    /* Sections */
+    section { padding: 100px 0; }
+    .section-title { text-align: center; margin-bottom: 60px; }
+    .section-title h2 { font-size: 2.5rem; color: var(--primary); margin-bottom: 15px; }
+    .section-title p { color: var(--gray); max-width: 600px; margin: 0 auto; }
+    
+    /* Services Grid */
+    .services-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 30px; }
+    .service-card {
+      background: white; border-radius: 20px; padding: 30px; text-align: center;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05); transition: transform 0.3s;
+    }
+    .service-card:hover { transform: translateY(-10px); }
+    .service-icon {
+      width: 70px; height: 70px; background: linear-gradient(135deg, var(--primary-light), var(--primary));
+      border-radius: 20px; display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 20px; color: white; font-size: 1.8rem;
+    }
+    .service-card h3 { margin-bottom: 10px; color: var(--primary); }
+    
+    /* Goals Section */
+    .goals-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; }
+    .goal-card {
+      background: white; border-radius: 20px; padding: 30px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05); border-left: 4px solid var(--accent);
+    }
+    .goal-card h3 { color: var(--primary); margin-bottom: 15px; display: flex; align-items: center; }
+    
+    /* About Section */
+    .about-content { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; align-items: center; }
+    .about-text h2 { color: var(--primary); margin-bottom: 20px; }
+    .about-features { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 30px; }
+    .feature { display: flex; align-items: center; gap: 10px; }
+    .feature i { color: var(--accent); font-size: 1.2rem; }
+    
+    /* Footer */
+    footer { background: var(--primary-dark); color: white; padding: 60px 0 30px; }
+    .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 40px; margin-bottom: 40px; }
+    .footer-logo { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+    .footer-logo .logo-icon { background: var(--accent); }
+    .footer-column h4 { margin-bottom: 20px; color: var(--accent); }
+    .footer-column a { display: block; color: rgba(255, 255, 255, 0.7); text-decoration: none; margin-bottom: 10px; }
+    .footer-column a:hover { color: white; }
+    .footer-bottom { text-align: center; padding-top: 30px; border-top: 1px solid rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.5); }
+    
+    /* Modals */
+    .modal-overlay {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(5px);
+      z-index: 3000; align-items: center; justify-content: center;
+    }
+    .modal { background: white; border-radius: 20px; padding: 30px; max-width: 400px; width: 90%; text-align: center; }
+    .modal-icon { font-size: 3rem; color: var(--accent); margin-bottom: 20px; }
+    .modal h3 { margin-bottom: 10px; }
+    .modal p { color: var(--gray); margin-bottom: 20px; }
+    .modal-input { width: 100%; padding: 14px 16px; border: 2px solid var(--gray-light); border-radius: 12px; font-size: 1rem; margin-bottom: 20px; }
+    
+    /* Notification */
+    .notification {
+      position: fixed; top: 100px; right: 20px; background: white;
+      border-radius: 12px; padding: 16px 20px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      z-index: 4000; display: flex; align-items: center; gap: 12px;
+      transform: translateX(400px); transition: transform 0.3s; max-width: 350px;
+    }
+    .notification.show { transform: translateX(0); }
+    .notification.success { border-left: 4px solid var(--success); }
+    .notification.error { border-left: 4px solid var(--danger); }
+    .notification-content h4 { margin-bottom: 4px; }
+    .notification-content p { font-size: 0.85rem; color: var(--gray); }
+    .notification-close { margin-left: auto; cursor: pointer; color: var(--gray); }
+    
+    /* Responsive */
+    @media (max-width: 1400px) {
+      .nav-links, .nav-buttons { display: none; }
+      .mobile-menu-btn { display: block; }
+    }
+
+    @media (max-width: 992px) {
+      .nav-links, .nav-buttons { display: none; }
+      .mobile-menu-btn { display: block; }
+      .hero {
+        min-height: auto; padding: 112px 0 56px;
+        background-position: 30% center;
+      }
+      .hero::before {
+        background: linear-gradient(180deg, rgba(255,255,255,0.42) 0%, rgba(255,255,255,0.24) 55%, rgba(255,255,255,0.4) 100%);
+      }
+      .hero-content { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+      .hero-text {
+        padding: 22px; border-radius: 20px;
+        background: rgba(255,255,255,0.76);
+        backdrop-filter: blur(4px);
+      }
+      .hero-stats { gap: 16px 28px; margin-top: 24px; }
+      .hero-card { width: 100%; max-width: 560px; margin: 0 auto; }
+      .auth-container { min-height: 0; }
+      .auth-slider { align-items: stretch; }
+      .auth-form { min-width: 0; }
+      .services-grid { grid-template-columns: repeat(2, 1fr); }
+      .goals-grid { grid-template-columns: 1fr; }
+      .about-content { grid-template-columns: 1fr; }
+      .footer-grid { grid-template-columns: 1fr 1fr; }
+      .hero-text h1 { font-size: 2.5rem; }
+    }
+    
+    @media (max-width: 768px) {
+      .hero-text h1 { font-size: 2rem; }
+      .hero-text p { font-size: 1rem; }
+      .hero-stats { gap: 20px; }
+      .services-grid { grid-template-columns: 1fr; }
+      .footer-grid { grid-template-columns: 1fr; }
+      section { padding: 60px 0; }
+      .hero-card { padding: 22px; border-radius: 22px; }
+      .auth-form { padding: 4px; }
+      .auth-form h2 { margin-bottom: 18px; font-size: 1.25rem; }
+      .form-group { margin-bottom: 14px; }
+      .auth-footer { font-size: 0.88rem; line-height: 1.6; }
+    }
+    @media (max-width: 480px) {
+      .btn { width: 100%; }
+      .hero { padding-top: 96px; background-position: 30% center; }
+      .hero-text { padding: 18px; }
+      .hero-text h1 { font-size: 1.8rem; }
+      .hero-stats { gap: 14px 20px; }
+      .stat-item h3 { font-size: 1.5rem; }
+      .hero-card { padding: 17px; }
+      .auth-form h2 { font-size: 1.1rem; }
+      .about-features { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header" id="header">
+    <div class="container">
+      <nav class="nav">
+        <div class="logo">
+          <div class="logo-icon">IBE</div>
+          <div class="logo-text"><span>IBE</span> Bank</div>
+        </div>
+        <div class="nav-links">
+          <a href="#home">Home</a>
+          <a href="#about">About</a>
+          <a href="#services">Services</a>
+          <a href="#goals">Our Goals</a>
+          <a href="#contact">Contact</a>
+        </div>
+        <div class="nav-buttons">
+          <a class="btn btn-outline school-return" href="/">Back to School Website</a>
+          <button class="btn btn-outline" onclick="slideToLogin()"><i class="fas fa-sign-in-alt"></i> Login</button>
+          <button class="btn btn-primary" onclick="slideToRegister()"><i class="fas fa-user-plus"></i> Open Account</button>
+          <button class="btn btn-agent" onclick="slideToAgent()"><i class="fas fa-store"></i> Become Agent</button>
+        </div>
+        <button class="mobile-menu-btn" onclick="openMobileMenu()"><i class="fas fa-bars"></i></button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Mobile Menu -->
+  <div class="mobile-menu" id="mobileMenu">
+    <div class="mobile-menu-header">
+      <div class="logo"><div class="logo-icon">IBE</div><div class="logo-text"><span>IBE</span> Bank</div></div>
+      <button class="mobile-menu-close" onclick="closeMobileMenu()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="mobile-menu-links">
+      <a href="#home" onclick="closeMobileMenu()">Home</a>
+      <a href="#about" onclick="closeMobileMenu()">About</a>
+      <a href="#services" onclick="closeMobileMenu()">Services</a>
+      <a href="#goals" onclick="closeMobileMenu()">Our Goals</a>
+      <a href="#contact" onclick="closeMobileMenu()">Contact</a>
+      <a class="btn btn-outline school-return" href="/">Back to School Website</a>
+      <button class="btn btn-outline" onclick="closeMobileMenu();slideToLogin();" style="margin-top:20px;">Login</button>
+      <button class="btn btn-primary" onclick="closeMobileMenu();slideToRegister();" style="margin-top:10px;">Open Account</button>
+      <button class="btn btn-agent" onclick="closeMobileMenu();slideToAgent();" style="margin-top:10px;">Become Agent</button>
+    </div>
+  </div>
+
+  <!-- Hero Section -->
+  <section id="home" class="hero">
+    <div class="container">
+      <div class="hero-content">
+        <div class="hero-text">
+          <h1>Banking for <span>Innovators, Businessmen & Entrepreneurs</span></h1>
+          <p>IBE Bank empowers visionaries with smart financial solutions, investment opportunities, and business growth support.</p>
+          <div class="hero-stats">
+            <div class="stat-item"><h3>50K+</h3><p>Active Clients</p></div>
+            <div class="stat-item"><h3>TSh 2B+</h3><p>Assets Managed</p></div>
+            <div class="stat-item"><h3>98%</h3><p>Satisfaction Rate</p></div>
+          </div>
+        </div>
+        
+        <div class="hero-card">
+          <div class="auth-container">
+            <div class="auth-slider" id="authSlider">
+              <!-- LOGIN FORM -->
+              <div class="auth-form">
+                <h2><i class="fas fa-sign-in-alt"></i> Welcome Back</h2>
+                <form id="loginForm" onsubmit="return false;">
+                  <div class="form-group"><label>Email Address</label><input type="email" id="loginEmail" placeholder="your@email.com" required></div>
+                  <div class="form-group">
+                    <label>Password</label>
+                    <div class="password-wrapper">
+                      <input type="password" id="loginPassword" placeholder="••••••••" required>
+                      <i class="far fa-eye password-toggle" onclick="togglePassword('loginPassword', this)"></i>
+                    </div>
+                    <div class="forgot-password"><a onclick="openResetPasswordModal()">Forgot Password?</a></div>
+                  </div>
+                  <button type="submit" class="btn btn-primary" style="width:100%;" id="loginBtn">Sign In</button>
+                </form>
+                <div class="auth-footer">Don't have an account? <a onclick="slideToRegister()">Register</a> | <a onclick="slideToAgent()">Become Agent</a></div>
+              </div>
+              
+              <!-- REGISTER FORM -->
+              <div class="auth-form">
+                <h2><i class="fas fa-user-plus"></i> Open Account</h2>
+                <form id="registerForm" onsubmit="return false;">
+                  <div class="form-group"><label>Full Name</label><input type="text" id="regName" placeholder="Hamdan Mahmoud" required></div>
+                  <div class="form-group"><label>Email Address</label><input type="email" id="regEmail" placeholder="your@email.com" required></div>
+                  <div class="form-group">
+                    <label>Password</label>
+                    <div class="password-wrapper">
+                      <input type="password" id="regPassword" placeholder="••••••••" required>
+                      <i class="far fa-eye password-toggle" onclick="togglePassword('regPassword', this)"></i>
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label>Confirm Password</label>
+                    <div class="password-wrapper">
+                      <input type="password" id="regConfirmPassword" placeholder="••••••••" required>
+                      <i class="far fa-eye password-toggle" onclick="togglePassword('regConfirmPassword', this)"></i>
+                    </div>
+                  </div>
+                  <div class="form-group"><label>Initial Deposit (TSh)</label><input type="number" id="regBalance" value="0" min="0"></div>
+                  <button type="submit" class="btn btn-accent" style="width:100%;" id="registerBtn">Create Account</button>
+                </form>
+                <div class="auth-footer">Already have an account? <a onclick="slideToLogin()">Login</a></div>
+              </div>
+              
+              <!-- AGENT REGISTRATION FORM -->
+              <div class="auth-form">
+                <h2><i class="fas fa-store"></i> Become an Agent</h2>
+                <form id="agentForm" onsubmit="return false;">
+                  <div class="form-group"><label>Full Name</label><input type="text" id="agentName" placeholder="Your full name" required></div>
+                  <div class="form-group"><label>Email Address</label><input type="email" id="agentEmail" placeholder="your@email.com" required></div>
+                  <div class="form-group"><label>Phone Number</label><input type="tel" id="agentPhone" placeholder="+255 7XX XXX XXX" required></div>
+                  <div class="form-group"><label>Business Name</label><input type="text" id="agentBusiness" placeholder="Your business name"></div>
+                  <div class="form-group"><label>Location / Address</label><input type="text" id="agentLocation" placeholder="Your location"></div>
+                  <div class="form-group">
+                    <label>Password</label>
+                    <div class="password-wrapper">
+                      <input type="password" id="agentPassword" placeholder="••••••••" required>
+                      <i class="far fa-eye password-toggle" onclick="togglePassword('agentPassword', this)"></i>
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label>Confirm Password</label>
+                    <div class="password-wrapper">
+                      <input type="password" id="agentConfirmPassword" placeholder="••••••••" required>
+                      <i class="far fa-eye password-toggle" onclick="togglePassword('agentConfirmPassword', this)"></i>
+                    </div>
+                  </div>
+                  <button type="submit" class="btn btn-agent" style="width:100%;" id="agentRegisterBtn">Register as Agent</button>
+                </form>
+                <div class="auth-footer">Already have an account? <a onclick="slideToLogin()">Login</a></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- About Section -->
+  <section id="about">
+    <div class="container">
+      <div class="about-content">
+        <div class="about-text">
+          <h2>Empowering Visionaries Since 2020</h2>
+          <p>IBE Bank was founded with a clear mission: to provide innovative financial solutions for innovators, businessmen, and entrepreneurs who are shaping the future.</p>
+          <div class="about-features">
+            <div class="feature"><i class="fas fa-check-circle"></i> 100% Digital Banking</div>
+            <div class="feature"><i class="fas fa-check-circle"></i> Agent Network Nationwide</div>
+            <div class="feature"><i class="fas fa-check-circle"></i> Competitive Profit Sharing</div>
+            <div class="feature"><i class="fas fa-check-circle"></i> Secure Transactions</div>
+          </div>
+        </div>
+        <div class="about-image">
+          <div style="background: linear-gradient(135deg, var(--primary), var(--accent)); border-radius: 30px; padding: 40px; text-align: center; color: white;">
+            <i class="fas fa-building-columns" style="font-size: 5rem; margin-bottom: 20px;"></i>
+            <h3 style="color: white;">Your Partner in Growth</h3>
+            <p style="color: rgba(255,255,255,0.9);">We understand the unique needs of entrepreneurs and provide tailored financial solutions.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Services Section -->
+  <section id="services" style="background: #f0f4f8;">
+    <div class="container">
+      <div class="section-title"><h2>Our Services</h2><p>Comprehensive banking solutions designed for modern businesses</p></div>
+      <div class="services-grid">
+        <div class="service-card"><div class="service-icon"><i class="fas fa-piggy-bank"></i></div><h3>Savings Accounts</h3><p>Earn profit share from loan interest distributions.</p></div>
+        <div class="service-card"><div class="service-icon"><i class="fas fa-hand-holding-usd"></i></div><h3>Business Loans</h3><p>Flexible loans with competitive rates starting at 10% per month.</p></div>
+        <div class="service-card"><div class="service-icon"><i class="fas fa-store"></i></div><h3>Agent Banking</h3><p>Deposit and withdraw through our nationwide agent network.</p></div>
+        <div class="service-card"><div class="service-icon"><i class="fas fa-mobile-alt"></i></div><h3>Digital Banking</h3><p>Manage your accounts anytime, anywhere with our secure platform.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Goals Section -->
+  <section id="goals">
+    <div class="container">
+      <div class="section-title"><h2>Our Goals & Vision</h2><p>Building the future of banking for entrepreneurs</p></div>
+      <div class="goals-grid">
+        <div class="goal-card"><h3><i class="fas fa-bullseye" style="color:var(--accent);margin-right:10px;"></i> Financial Inclusion</h3><p>Making banking accessible to all entrepreneurs through our agent network.</p></div>
+        <div class="goal-card"><h3><i class="fas fa-rocket" style="color:var(--accent);margin-right:10px;"></i> Innovation First</h3><p>Continuously evolving our technology for cutting-edge financial solutions.</p></div>
+        <div class="goal-card"><h3><i class="fas fa-handshake" style="color:var(--accent);margin-right:10px;"></i> Community Growth</h3><p>Supporting local businesses and creating economic development opportunities.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer id="contact">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-column">
+          <div class="footer-logo"><div class="logo-icon">IBE</div><div class="logo-text" style="color:white;">IBE Bank</div></div>
+          <p style="color:rgba(255,255,255,0.7);">Empowering innovators, businessmen, and entrepreneurs with smart financial solutions.</p>
+        </div>
+        <div class="footer-column"><h4>Quick Links</h4><a href="#home">Home</a><a href="#about">About</a><a href="#services">Services</a><a href="#goals">Our Goals</a></div>
+        <div class="footer-column"><h4>Services</h4><a href="#">Savings</a><a href="#">Loans</a><a href="#">Agent Banking</a><a href="#">Digital Banking</a></div>
+        <div class="footer-column"><h4>Contact</h4><p style="color:rgba(255,255,255,0.7);"><i class="fas fa-phone"></i> +255 749 281 607</p><p style="color:rgba(255,255,255,0.7);"><i class="fas fa-envelope"></i> info@ibebank.com</p></div>
+      </div>
+      <div class="footer-bottom"><p>© 2026 IBE Bank · Innovators, Businessmen & Entrepreneurs. All rights reserved.</p></div>
+    </div>
+  </footer>
+
+  <!-- Success Modal -->
+  <div class="modal-overlay" id="authModal">
+    <div class="modal">
+      <div class="modal-icon"><i class="fas fa-check-circle" style="color:var(--success);"></i></div>
+      <h3 id="modalTitle">Registration Submitted!</h3>
+      <p id="modalMessage">Your application has been submitted for admin approval.</p>
+      <button class="btn btn-primary" onclick="closeModal()">Got it</button>
+    </div>
+  </div>
+
+  <!-- Reset Password Modal -->
+  <div class="modal-overlay" id="resetPasswordModal">
+    <div class="modal">
+      <div class="modal-icon"><i class="fas fa-lock"></i></div>
+      <h3>Reset Password</h3>
+      <p>Enter your email to receive a password reset link.</p>
+      <input type="email" id="resetEmail" class="modal-input" placeholder="your@email.com">
+      <button class="btn btn-primary" onclick="sendPasswordReset()" style="width:100%;">Send Reset Link</button>
+      <button class="btn btn-outline" onclick="closeResetPasswordModal()" style="width:100%;margin-top:10px;">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Notification -->
+  <div class="notification" id="notification">
+    <i class="fas fa-check-circle"></i>
+    <div class="notification-content"><h4 id="notifTitle">Success</h4><p id="notifMessage">Operation completed.</p></div>
+    <div class="notification-close" onclick="hideNotification()"><i class="fas fa-times"></i></div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { getFirestore, doc, setDoc, getDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCifzsvcufqs-HOg_KDOzkUYoxsHhlTfN8",
+      authDomain: "minibank-b76d6.firebaseapp.com",
+      projectId: "minibank-b76d6",
+      storageBucket: "minibank-b76d6.firebasestorage.app",
+      messagingSenderId: "1076277480681",
+      appId: "1:1076277480681:web:38592a2bd360ab7e7db478"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // Slide functions
+    window.slideToLogin = () => { document.getElementById('authSlider').classList.add('login-active'); document.getElementById('authSlider').classList.remove('register-active','agent-active'); };
+    window.slideToRegister = () => { document.getElementById('authSlider').classList.add('register-active'); document.getElementById('authSlider').classList.remove('login-active','agent-active'); };
+    window.slideToAgent = () => { document.getElementById('authSlider').classList.add('agent-active'); document.getElementById('authSlider').classList.remove('login-active','register-active'); };
+    window.closeModal = () => { document.getElementById('authModal').style.display = 'none'; };
+    window.openMobileMenu = () => { document.getElementById('mobileMenu').classList.add('active'); document.body.style.overflow = 'hidden'; };
+    window.closeMobileMenu = () => { document.getElementById('mobileMenu').classList.remove('active'); document.body.style.overflow = ''; };
+    window.openResetPasswordModal = () => { document.getElementById('resetPasswordModal').style.display = 'flex'; };
+    window.closeResetPasswordModal = () => { document.getElementById('resetPasswordModal').style.display = 'none'; };
+
+    window.togglePassword = (inputId, icon) => {
+      const input = document.getElementById(inputId);
+      if (input.type === 'password') { input.type = 'text'; icon.classList.remove('fa-eye'); icon.classList.add('fa-eye-slash'); }
+      else { input.type = 'password'; icon.classList.remove('fa-eye-slash'); icon.classList.add('fa-eye'); }
+    };
+
+    function showNotification(type, title, message) {
+      const notif = document.getElementById('notification');
+      notif.className = `notification ${type} show`;
+      document.getElementById('notifTitle').textContent = title;
+      document.getElementById('notifMessage').textContent = message;
+      setTimeout(() => notif.classList.remove('show'), 5000);
+    }
+    window.hideNotification = () => { document.getElementById('notification').classList.remove('show'); };
+
+    // Password Reset
+    window.sendPasswordReset = async () => {
+      const email = document.getElementById('resetEmail').value.trim();
+      if (!email) { showNotification('error','Error','Enter your email'); return; }
+      try {
+        await sendPasswordResetEmail(auth, email);
+        showNotification('success','Email Sent','Password reset link sent.');
+        closeResetPasswordModal();
+      } catch(e) { showNotification('error','Error',e.message); }
+    };
+
+    // LOGIN
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+      const password = document.getElementById('loginPassword').value;
+      const btn = document.getElementById('loginBtn'); btn.textContent = 'Signing in...'; btn.disabled = true;
+      try {
+        const userCred = await signInWithEmailAndPassword(auth, email, password);
+        const adminDoc = await getDoc(doc(db, "admins", userCred.user.uid));
+        if (adminDoc.exists()) { window.location.href = 'admin-dashboard.html'; return; }
+        const agentDoc = await getDoc(doc(db, "agents", userCred.user.uid));
+        if (agentDoc.exists() && agentDoc.data().status === 'active') { window.location.href = 'agent-dashboard.html'; return; }
+        window.location.href = 'client-dashboard.html';
+      } catch(e) { showNotification('error','Login Failed',e.message); }
+      finally { btn.textContent = 'Sign In'; btn.disabled = false; }
+    });
+
+    // REGISTER CLIENT
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('regName').value.trim();
+      const email = document.getElementById('regEmail').value.trim().toLowerCase();
+      const password = document.getElementById('regPassword').value;
+      const confirmPassword = document.getElementById('regConfirmPassword').value;
+      const balance = parseFloat(document.getElementById('regBalance').value) || 0;
+      
+      if (!name || !email || !password || !confirmPassword) { showNotification('error','Error','All fields required'); return; }
+      if (password !== confirmPassword) { showNotification('error','Error','Passwords do not match'); return; }
+      if (password.length < 6) { showNotification('error','Error','Password must be at least 6 characters'); return; }
+      
+      const btn = document.getElementById('registerBtn'); btn.textContent = 'Creating...'; btn.disabled = true;
+      try {
+        const userCred = await createUserWithEmailAndPassword(auth, email, password);
+        await setDoc(doc(db, "pendingRegistrations", userCred.user.uid), {
+          name, email, initialBalance: balance, status: 'pending', createdAt: new Date().toISOString(), uid: userCred.user.uid
+        });
+        await signOut(auth);
+        document.getElementById('modalTitle').textContent = 'Registration Submitted!';
+        document.getElementById('modalMessage').textContent = `Thank you ${name}! Your account is pending admin approval.`;
+        document.getElementById('authModal').style.display = 'flex';
+        document.getElementById('registerForm').reset();
+        slideToLogin();
+      } catch(e) {
+        if (e.code === 'auth/email-already-in-use') showNotification('error','Error','Email already registered.');
+        else showNotification('error','Error',e.message);
+      }
+      finally { btn.textContent = 'Create Account'; btn.disabled = false; }
+    });
+
+    // REGISTER AGENT
+    document.getElementById('agentForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('agentName').value.trim();
+      const email = document.getElementById('agentEmail').value.trim().toLowerCase();
+      const phone = document.getElementById('agentPhone').value.trim();
+      const businessName = document.getElementById('agentBusiness').value.trim();
+      const location = document.getElementById('agentLocation').value.trim();
+      const password = document.getElementById('agentPassword').value;
+      const confirmPassword = document.getElementById('agentConfirmPassword').value;
+      
+      if (!name || !email || !phone || !password || !confirmPassword) { showNotification('error','Error','All required fields must be filled'); return; }
+      if (password !== confirmPassword) { showNotification('error','Error','Passwords do not match'); return; }
+      if (password.length < 6) { showNotification('error','Error','Password must be at least 6 characters'); return; }
+      
+      const btn = document.getElementById('agentRegisterBtn'); btn.textContent = 'Submitting...'; btn.disabled = true;
+      try {
+        const userCred = await createUserWithEmailAndPassword(auth, email, password);
+        await setDoc(doc(db, "pendingAgents", userCred.user.uid), {
+          name, email, phone, businessName, location, status: 'pending',
+          createdAt: new Date().toISOString(), uid: userCred.user.uid
+        });
+        await signOut(auth);
+        document.getElementById('modalTitle').textContent = 'Agent Application Submitted!';
+        document.getElementById('modalMessage').textContent = `Thank you ${name}! Your agent application is pending admin approval. You'll be notified once approved.`;
+        document.getElementById('authModal').style.display = 'flex';
+        document.getElementById('agentForm').reset();
+        slideToLogin();
+      } catch(e) {
+        if (e.code === 'auth/email-already-in-use') showNotification('error','Error','Email already registered.');
+        else showNotification('error','Error',e.message);
+      }
+      finally { btn.textContent = 'Register as Agent'; btn.disabled = false; }
+    });
+
+    // Header scroll
+    window.addEventListener('scroll', () => { document.getElementById('header').classList.toggle('scrolled', window.scrollY > 50); });
+
+    // Auto-redirect if logged in
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const adminDoc = await getDoc(doc(db, "admins", user.uid));
+        if (adminDoc.exists()) { window.location.href = 'admin-dashboard.html'; return; }
+        const agentDoc = await getDoc(doc(db, "agents", user.uid));
+        if (agentDoc.exists() && agentDoc.data().status === 'active') { window.location.href = 'agent-dashboard.html'; return; }
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        if (userDoc.exists()) { window.location.href = 'client-dashboard.html'; return; }
+        await signOut(auth);
+      }
+    });
+
+    // Smooth scroll
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function(e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) target.scrollIntoView({ behavior: 'smooth' });
+      });
+    });
+  </script>
+</body>
+</html>
