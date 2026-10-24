@@ -257,16 +257,16 @@
         background-position: 30% center;
       }
       .hero::before {
-        background: linear-gradient(180deg, rgba(255,255,255,0.42) 0%, rgba(255,255,255,0.24) 55%, rgba(255,255,255,0.4) 100%);
+        background: linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 55%, rgba(255,255,255,0.06) 100%);
       }
       .hero-content { grid-template-columns: minmax(0, 1fr); gap: 24px; }
       .hero-text {
         padding: 22px; border-radius: 20px;
-        background: rgba(255,255,255,0.76);
-        backdrop-filter: blur(4px);
+        background: rgba(255,255,255,0.28);
+        backdrop-filter: blur(2px);
       }
       .hero-stats { gap: 16px 28px; margin-top: 24px; }
-      .hero-card { width: 100%; max-width: 560px; margin: 0 auto; }
+      .hero-card { width: 100%; max-width: 560px; margin: 0 auto; background: rgba(255,255,255,0.58); }
       .auth-container { min-height: 0; }
       .auth-slider { align-items: stretch; }
       .auth-form { min-width: 0; }
@@ -278,6 +278,13 @@
     }
     
     @media (max-width: 768px) {
+      .hero {
+        background-image: url("./ibebank-mobile-background.png");
+        background-position: center top;
+        background-size: 100% auto;
+        background-color: #e2eaf3;
+      }
+      .hero::before { background: rgba(255,255,255,0.02); }
       .hero-text h1 { font-size: 2rem; }
       .hero-text p { font-size: 1rem; }
       .hero-stats { gap: 20px; }
@@ -292,7 +299,7 @@
     }
     @media (max-width: 480px) {
       .btn { width: 100%; }
-      .hero { padding-top: 96px; background-position: 30% center; }
+      .hero { padding-top: 96px; background-position: center top; }
       .hero-text { padding: 18px; }
       .hero-text h1 { font-size: 1.8rem; }
       .hero-stats { gap: 14px 20px; }
