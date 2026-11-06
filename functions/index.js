@@ -1,9 +1,9 @@
-import archiver from 'archiver'
 import { getApp, getApps, initializeApp } from 'firebase-admin/app'
 import { getAuth } from 'firebase-admin/auth'
 import { getFirestore } from 'firebase-admin/firestore'
 import { getStorage } from 'firebase-admin/storage'
 import { onRequest } from 'firebase-functions/v2/https'
+import yazl from 'yazl'
 
 const projectId = 'analyticsbook-c4e8f'
 const bucketName = `${projectId}.firebasestorage.app`
@@ -23,7 +23,9 @@ const applicationDocuments = [
   ['father', 'Father passport photo', 'father-passport-photo', 'father-passport'],
 ]
 
-const app = getApps().length ? getApp() : initializeApp({ projectId, storageBucket: bucketName })
+const app = getApps().some(existingApp => existingApp.name === '[DEFAULT]')
+  ? getApp()
+  : initializeApp({ projectId, storageBucket: bucketName })
 const auth = getAuth(app)
 const db = getFirestore(app, '(default)')
 const bucket = getStorage(app).bucket(bucketName)
@@ -41,7 +43,7 @@ function documentPath(application, field) {
 }
 
 function getExtension(contentType = '') {
-  const normalizedType = contentType.split(';')[0].trim().toLowerCase()
+  const normalizedType = String(contentType || '').split(';')[0].trim().toLowerCase()
   if (normalizedType === 'application/pdf') return 'pdf'
   if (!normalizedType.startsWith('image/')) return 'bin'
   const imageType = normalizedType.slice('image/'.length).replace(/[^a-z0-9]/g, '')
@@ -92,10 +94,9 @@ async function getArchiveEntries(application, applicationId) {
 }
 
 function streamArchive(response, entries, missingDocuments) {
-  const archive = archiver('zip', { store: true })
+  const archive = new yazl.ZipFile()
   const outputFinished = new Promise((resolve, reject) => {
-    archive.on('error', reject)
-    archive.on('warning', reject)
+    archive.outputStream.on('error', reject)
     response.on('finish', resolve)
     response.on('error', reject)
     response.on('close', () => {
@@ -109,28 +110,32 @@ function streamArchive(response, entries, missingDocuments) {
   response.set('X-Downloaded-Count', String(entries.length))
   response.set('X-Unavailable-Documents', missingDocuments.join('|'))
   response.set('Access-Control-Expose-Headers', 'X-Downloaded-Count, X-Unavailable-Documents')
-  archive.pipe(response)
+  archive.outputStream.pipe(response)
 
   for (const entry of entries) {
     const stream = entry.file.createReadStream()
-    stream.on('error', error => archive.destroy(error))
-    archive.append(stream, { name: entry.name })
+    stream.on('error', error => archive.outputStream.destroy(error))
+    archive.addReadStream(stream, entry.name, { compress: false })
   }
   if (missingDocuments.length) {
-    archive.append(
-      `The following application documents were not found in Storage:\n${missingDocuments.map(label => `- ${label}`).join('\n')}\n`,
-      { name: 'download-report.txt' },
+    archive.addBuffer(
+      Buffer.from(
+        `The following application documents were not found in Storage:\n${missingDocuments.map(label => `- ${label}`).join('\n')}\n`,
+      ),
+      'download-report.txt',
+      { compress: false },
     )
   }
 
-  return Promise.all([archive.finalize(), outputFinished])
+  archive.end()
+  return outputFinished
 }
 
 export const downloadStudentZip = onRequest(
   {
     region: 'us-central1',
     cors: allowedOrigins,
-    memory: '1GiB',
+    memory: '512MiB',
     timeoutSeconds: 300,
     maxInstances: 3,
     concurrency: 4,
