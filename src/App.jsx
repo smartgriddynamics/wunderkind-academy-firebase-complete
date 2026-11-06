@@ -1,4 +1,4 @@
-import { auth, db, storage } from './firebase'
+import { auth, db, storage, DOWNLOAD_STUDENT_ZIP_URL } from './firebase'
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from 'firebase/auth'
 import { collection, addDoc, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, query, where, serverTimestamp } from 'firebase/firestore'
 import { deleteObject, getBlob, ref as storageRef, uploadBytes } from 'firebase/storage'
@@ -150,65 +150,39 @@ async function createStudentArchive(application, onProgress) {
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-zA-Z0-9]+/g, '-')
     .replace(/^-|-$/g, '') || 'student'
-  const archive = new JSZip()
-  const imagesFolder = archive.folder('images')
-  const documents = [
-    ['Student passport', application.passportDocument, 'student-passport'],
-    ['Birth certificate front', application.birthCertificateFrontDocument, 'birth-certificate-front'],
-    ['Birth certificate back', application.birthCertificateBackDocument, 'birth-certificate-back'],
-    ['Birth certificate', application.birthCertificateDocument, 'birth-certificate'],
-    ['Mother passport photo', application.mother?.passportPhoto, 'mother-passport-photo'],
-    ['Father passport photo', application.father?.passportPhoto, 'father-passport-photo'],
-  ].filter(([, path]) => path)
-  const unavailableDocuments = []
-  const documentFailures = []
-  let downloadedCount = 0
-
-  for (let start = 0; start < documents.length; start += 3) {
-    const batch = documents.slice(start, start + 3)
-    onProgress(`Downloading documents ${start + 1}-${start + batch.length} of ${documents.length}…`)
-    const results = await Promise.allSettled(batch.map(async ([label, path, fileName]) => {
-      const file = await getBlob(storageRef(storage, path))
-      const contentType = file.type.split(';')[0].toLowerCase()
-      const imageExtension = contentType.startsWith('image/')
-        ? contentType.slice('image/'.length).replace(/[^a-z0-9]/g, '')
-        : ''
-      const extension = contentType === 'application/pdf'
-        ? 'pdf'
-        : imageExtension
-          ? imageExtension === 'jpeg' ? 'jpg' : imageExtension
-          : 'bin'
-      imagesFolder.file(`${fileName}.${extension}`, file)
-    }))
-    results.forEach((result, index) => {
-      if (result.status === 'fulfilled') {
-        downloadedCount += 1
-      } else {
-        const [label, , fileName] = batch[index]
-        const error = result.reason
-        const code = typeof error?.code === 'string' ? error.code : ''
-        const message = error?.customData?.serverResponse || error?.message || String(error)
-        console.error(`Unable to add ${label} to the student archive`, result.reason)
-        unavailableDocuments.push(label)
-        documentFailures.push(`${fileName}: ${code ? `${code} — ` : ''}${message}`)
-      }
-    })
+  const user = auth.currentUser
+  if (!user) throw new Error('Sign in as an administrator before downloading application documents.')
+  onProgress('Requesting documents from secure server…')
+  const response = await fetch(DOWNLOAD_STUDENT_ZIP_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${await user.getIdToken()}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ applicationId: application.id }),
+  })
+  if (!response.ok) {
+    const responseBody = response.headers.get('content-type')?.includes('application/json')
+      ? await response.json()
+      : { error: await response.text() }
+    throw new Error(responseBody.error || `The secure download service returned HTTP ${response.status}.`)
   }
 
-  if (documents.length && !downloadedCount) {
-    const origin = window.location.origin
-    throw new Error(`Could not download any of the ${documents.length} application documents from ${origin}. ${documentFailures.join(' | ')}`)
-  }
-  if (unavailableDocuments.length) {
-    archive.file('download-report.txt', `The following application documents could not be downloaded:\n${documentFailures.map(error => `- ${error}`).join('\n')}\n`)
-  }
-
+  const archive = await JSZip.loadAsync(await response.blob())
   onProgress('Preparing application PDF…')
   const { blob: applicationPdf } = await createApplicationPdf(application)
   archive.file('application-info.pdf', applicationPdf)
   onProgress('Creating ZIP file…')
   const blob = await archive.generateAsync({ type: 'blob', compression: 'STORE' })
-  return { blob, fileName: `${printableName}.zip`, unavailableDocuments, downloadedCount }
+  const unavailableDocuments = (response.headers.get('X-Unavailable-Documents') || '')
+    .split('|')
+    .filter(Boolean)
+  return {
+    blob,
+    fileName: `${printableName}.zip`,
+    unavailableDocuments,
+    downloadedCount: Number(response.headers.get('X-Downloaded-Count') || 0),
+  }
 }
 async function ensureApplicantAccount(user) {
   const accountRef = doc(db, 'applicantAccounts', user.uid)
@@ -999,7 +973,7 @@ function AdminDashboard({ onLogout }) {
         ? ' Storage denied the read. Verify this signed-in admin has an admins/{uid} document with active: true, then deploy Storage rules.'
         : message.includes('storage/object-not-found')
           ? ' The Storage object is missing. Confirm the application document path still exists in the configured bucket.'
-          : ` Check the bucket CORS configuration includes ${window.location.origin}, then deploy the latest Storage rules.`
+          : ' Confirm the downloadStudentZip Firebase Function is deployed and this account has an active admin record.'
       setDownloadError(`ZIP download failed: ${message}.${hint}`)
     } finally {
       setPdfDownloadingId('')
