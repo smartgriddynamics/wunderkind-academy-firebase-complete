@@ -6,8 +6,23 @@
       "http://localhost:5173",
       "http://localhost:5175"
     ],
-    "method": ["GET"],
-    "responseHeader": ["Content-Type"],
+    "method": ["GET", "HEAD", "POST", "PUT", "DELETE"],
+    "responseHeader": [
+      "Authorization",
+      "Content-Type",
+      "X-Firebase-AppCheck",
+      "X-Firebase-GMPID",
+      "X-Firebase-Storage-Version",
+      "X-Goog-Upload-Command",
+      "X-Goog-Upload-Content-Type",
+      "X-Goog-Upload-Header-Content-Length",
+      "X-Goog-Upload-Header-Content-Type",
+      "X-Goog-Upload-Protocol",
+      "X-Goog-Upload-Offset",
+      "X-Goog-Upload-Size-Received",
+      "X-Goog-Upload-Status",
+      "X-Goog-Upload-URL"
+    ],
     "maxAgeSeconds": 3600
   }
 ]
