@@ -13,9 +13,10 @@ service cloud.firestore {
     match /applicantAccounts/{uid} {
       allow create: if request.auth != null &&
         request.auth.uid == uid &&
-        request.resource.data.keys().hasOnly(['uid','email','createdAt']) &&
+        request.resource.data.keys().hasOnly(['uid','email','role','createdAt']) &&
         request.resource.data.uid == uid &&
         request.resource.data.email == request.auth.token.email &&
+        request.resource.data.role == 'user' &&
         request.resource.data.createdAt == request.time;
       allow read: if isAdmin() || (request.auth != null && request.auth.uid == uid);
       allow update, delete: if false;
@@ -25,15 +26,18 @@ service cloud.firestore {
         request.resource.data.keys().hasOnly([
           'id','ownerUid','accountEmail','submittedAt','status','studentName','formDate','nickname',
           'dateOfBirth','gender','nationality','birthPlace','address','staysWith','birthCertificateAttached',
+          'passportDocument','birthCertificateDocument','birthCertificateFrontDocument','birthCertificateBackDocument',
           'previousSchool','religion','allergies','congenitalIllness','otherChildInformation','applyingFor',
           'mother','father','otherContact','guardianName','guardianRelationship','guardianPhone','guardianEmail'
         ]) &&
         request.resource.data.keys().hasAll([
           'id','ownerUid','accountEmail','submittedAt','status','studentName','formDate','nickname',
           'dateOfBirth','gender','nationality','birthPlace','address','staysWith','birthCertificateAttached',
+          'passportDocument','birthCertificateDocument','birthCertificateFrontDocument','birthCertificateBackDocument',
           'previousSchool','religion','allergies','congenitalIllness','otherChildInformation','applyingFor',
           'mother','father','otherContact','guardianName','guardianRelationship','guardianPhone','guardianEmail'
         ]) &&
+        request.resource.data.id == id &&
         request.resource.data.ownerUid == request.auth.uid &&
         request.resource.data.accountEmail == request.auth.token.email &&
         request.resource.data.status == 'Pending' &&
@@ -44,10 +48,20 @@ service cloud.firestore {
         request.resource.data.guardianEmail is string &&
         request.resource.data.guardianPhone is string &&
         request.resource.data.submittedAt == request.time &&
+        request.resource.data.passportDocument is string &&
+        request.resource.data.passportDocument == 'applicationDocuments/' + request.auth.uid + '/' + id + '/passport' &&
+        request.resource.data.birthCertificateDocument is string &&
+        request.resource.data.birthCertificateDocument == '' &&
+        request.resource.data.birthCertificateFrontDocument is string &&
+        request.resource.data.birthCertificateFrontDocument == 'applicationDocuments/' + request.auth.uid + '/' + id + '/birth-certificate-front' &&
+        request.resource.data.birthCertificateBackDocument is string &&
+        request.resource.data.birthCertificateBackDocument == 'applicationDocuments/' + request.auth.uid + '/' + id + '/birth-certificate-back' &&
         request.resource.data.mother is map &&
-        request.resource.data.mother.keys().hasOnly(['name','phone','work','nida']) &&
+        request.resource.data.mother.keys().hasOnly(['name','phone','work','nida','passportPhoto']) &&
+        request.resource.data.mother.passportPhoto == 'applicationDocuments/' + request.auth.uid + '/' + id + '/mother-passport' &&
         request.resource.data.father is map &&
-        request.resource.data.father.keys().hasOnly(['name','phone','work','nida']) &&
+        request.resource.data.father.keys().hasOnly(['name','phone','work','nida','passportPhoto']) &&
+        request.resource.data.father.passportPhoto == 'applicationDocuments/' + request.auth.uid + '/' + id + '/father-passport' &&
         request.resource.data.otherContact is map &&
         request.resource.data.otherContact.keys().hasOnly(['name','phone','address','nida']);
       allow read: if isAdmin() || (request.auth != null && resource.data.ownerUid == request.auth.uid);

@@ -1,0 +1,13 @@
+[
+  {
+    "origin": [
+      "https://wunderkindsacademyschool.org",
+      "https://www.wunderkindsacademyschool.org",
+      "http://localhost:5173",
+      "http://localhost:5175"
+    ],
+    "method": ["GET"],
+    "responseHeader": ["Content-Type"],
+    "maxAgeSeconds": 3600
+  }
+]

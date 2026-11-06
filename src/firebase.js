@@ -1,16 +1,20 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
+import { getStorage } from 'firebase/storage'
+
+export const FIRESTORE_DATABASE_ID = '(default)'
 
 const firebaseConfig = {
-  apiKey: 'AIzaSyD9bt8n5v4b_AyO6iir3PQfFcHy-aOUD4Y',
-  authDomain: 'wunderkind-academy.firebaseapp.com',
-  projectId: 'wunderkind-academy',
-  storageBucket: 'wunderkind-academy.firebasestorage.app',
-  messagingSenderId: '778050223647',
-  appId: '1:778050223647:web:e7cf7492a50994b24c1f2a',
-  measurementId: 'G-HTV26W5PMD',
+  apiKey: 'AIzaSyD1QVeGY7ZnUWirkKuudvPNUbYbthdyugE',
+  authDomain: 'analyticsbook-c4e8f.firebaseapp.com',
+  projectId: 'analyticsbook-c4e8f',
+  storageBucket: 'analyticsbook-c4e8f.firebasestorage.app',
+  messagingSenderId: '847316888383',
+  appId: '1:847316888383:web:51585a3945cb7e0296818a',
+  measurementId: 'G-PHGWTDDNTL',
 }
 export const app = initializeApp(firebaseConfig)
 export const auth = getAuth(app)
-export const db = getFirestore(app)
+export const db = getFirestore(app, FIRESTORE_DATABASE_ID)
+export const storage = getStorage(app)

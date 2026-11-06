@@ -1,7 +1,8 @@
-import { auth, db } from './firebase'
+import { auth, db, storage } from './firebase'
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from 'firebase/auth'
 import { collection, addDoc, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, query, where, serverTimestamp } from 'firebase/firestore'
-import { useEffect, useMemo, useState } from 'react'
+import { deleteObject, getBlob, ref as storageRef, uploadBytes } from 'firebase/storage'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Menu, X, ArrowUpRight, ArrowRight, GraduationCap, BookOpen, Users,
@@ -9,7 +10,7 @@ import {
   MapPin, Phone, Mail, Clock, CheckCircle2, ChevronDown, Lightbulb,
   HeartHandshake, Music, Trophy, Code2, Facebook, Instagram, Youtube,
   ClipboardList, Search, LogOut, Check, Ban, Eye, LayoutDashboard,
-  UserRound, CalendarDays, FileText, AlertCircle, ExternalLink, Download
+  UserRound, CalendarDays, FileText, AlertCircle, ExternalLink, Download, Camera, Upload
 } from 'lucide-react'
 
 const siteBase = import.meta.env.BASE_URL
@@ -79,26 +80,163 @@ function useCollection(name, publishedOnly=false) {
 function makeId() {
   return `WA-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`
 }
+const MAX_DOCUMENT_SIZE = 10 * 1024 * 1024
+function validateDocumentFile(file) {
+  if (!file) return ''
+  if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
+    return 'Choose an image or PDF file.'
+  }
+  if (file.size > MAX_DOCUMENT_SIZE) {
+    return 'Each document must be 10 MB or smaller.'
+  }
+  return ''
+}
+function validateImageFile(file) {
+  if (file && !file.type.startsWith('image/')) return 'Choose an image file for the passport-size photo.'
+  return validateDocumentFile(file)
+}
+function DocumentUploadField({ label, file, onChange, imageOnly = false }) {
+  const filePicker = useRef(null)
+  const cameraPicker = useRef(null)
+  const [error, setError] = useState('')
+  function selectFile(selectedFile) {
+    const validationError = imageOnly ? validateImageFile(selectedFile) : validateDocumentFile(selectedFile)
+    setError(validationError)
+    onChange(validationError ? null : selectedFile)
+  }
+  return <div className="rounded-xl border border-slate-200 p-4">
+    <p className="text-xs font-semibold text-slate-700">{label} <span className="font-semibold text-rose-700">* required</span></p>
+    <input ref={filePicker} className="sr-only" type="file" accept={imageOnly ? 'image/*' : 'image/*,application/pdf'} onChange={event => { selectFile(event.currentTarget.files?.[0] || null); event.currentTarget.value = '' }}/>
+    <input ref={cameraPicker} className="sr-only" type="file" accept="image/*" capture="environment" onChange={event => { selectFile(event.currentTarget.files?.[0] || null); event.currentTarget.value = '' }}/>
+    <div className="mt-3 flex flex-wrap gap-2">
+      <button type="button" onClick={() => cameraPicker.current?.click()} className="inline-flex items-center gap-2 rounded-full border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"><Camera size={15}/> Take photo</button>
+      <button type="button" onClick={() => filePicker.current?.click()} className="inline-flex items-center gap-2 rounded-full border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"><Upload size={15}/> Choose {imageOnly ? 'image' : 'image or PDF'}</button>
+    </div>
+    <p className="mt-2 break-all text-xs text-slate-500">{file?.name || `${imageOnly ? 'Image' : 'JPEG, PNG, or PDF'} · maximum 10 MB`}</p>
+    {error&&<p role="alert" className="mt-2 text-xs text-rose-700">{error}</p>}
+  </div>
+}
+async function downloadPrivateDocument(path, fileName) {
+  const file = await getBlob(storageRef(storage, path))
+  const url = URL.createObjectURL(file)
+  const link = document.createElement('a')
+  link.href = url
+  const extension = file.type === 'application/pdf'
+    ? 'pdf'
+    : file.type.startsWith('image/')
+      ? file.type.slice('image/'.length).replace(/[^a-z0-9]/gi, '') || 'image'
+      : 'file'
+  link.download = `${fileName}.${extension}`
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+}
+function saveBlob(blob, fileName) {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  link.style.display = 'none'
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+}
+async function createStudentArchive(application, onProgress) {
+  const JSZip = (await import('jszip')).default
+  const printableName = String(application.studentName || 'student')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-|-$/g, '') || 'student'
+  const archive = new JSZip()
+  const imagesFolder = archive.folder('images')
+  const documents = [
+    ['Student passport', application.passportDocument, 'student-passport'],
+    ['Birth certificate front', application.birthCertificateFrontDocument, 'birth-certificate-front'],
+    ['Birth certificate back', application.birthCertificateBackDocument, 'birth-certificate-back'],
+    ['Birth certificate', application.birthCertificateDocument, 'birth-certificate'],
+    ['Mother passport photo', application.mother?.passportPhoto, 'mother-passport-photo'],
+    ['Father passport photo', application.father?.passportPhoto, 'father-passport-photo'],
+  ].filter(([, path]) => path)
+  const unavailableDocuments = []
+  const documentFailures = []
+  let downloadedCount = 0
+
+  for (let start = 0; start < documents.length; start += 3) {
+    const batch = documents.slice(start, start + 3)
+    onProgress(`Downloading documents ${start + 1}-${start + batch.length} of ${documents.length}…`)
+    const results = await Promise.allSettled(batch.map(async ([label, path, fileName]) => {
+      const file = await getBlob(storageRef(storage, path))
+      const contentType = file.type.split(';')[0].toLowerCase()
+      const imageExtension = contentType.startsWith('image/')
+        ? contentType.slice('image/'.length).replace(/[^a-z0-9]/g, '')
+        : ''
+      const extension = contentType === 'application/pdf'
+        ? 'pdf'
+        : imageExtension
+          ? imageExtension === 'jpeg' ? 'jpg' : imageExtension
+          : 'bin'
+      imagesFolder.file(`${fileName}.${extension}`, file)
+    }))
+    results.forEach((result, index) => {
+      if (result.status === 'fulfilled') {
+        downloadedCount += 1
+      } else {
+        const [label, , fileName] = batch[index]
+        const error = result.reason
+        const code = typeof error?.code === 'string' ? error.code : ''
+        const message = error?.customData?.serverResponse || error?.message || String(error)
+        console.error(`Unable to add ${label} to the student archive`, result.reason)
+        unavailableDocuments.push(label)
+        documentFailures.push(`${fileName}: ${code ? `${code} — ` : ''}${message}`)
+      }
+    })
+  }
+
+  if (documents.length && !downloadedCount) {
+    const origin = window.location.origin
+    throw new Error(`Could not download any of the ${documents.length} application documents from ${origin}. ${documentFailures.join(' | ')}`)
+  }
+  if (unavailableDocuments.length) {
+    archive.file('download-report.txt', `The following application documents could not be downloaded:\n${documentFailures.map(error => `- ${error}`).join('\n')}\n`)
+  }
+
+  onProgress('Preparing application PDF…')
+  const { blob: applicationPdf } = await createApplicationPdf(application)
+  archive.file('application-info.pdf', applicationPdf)
+  onProgress('Creating ZIP file…')
+  const blob = await archive.generateAsync({ type: 'blob', compression: 'STORE' })
+  return { blob, fileName: `${printableName}.zip`, unavailableDocuments, downloadedCount }
+}
 async function ensureApplicantAccount(user) {
   const accountRef = doc(db, 'applicantAccounts', user.uid)
   const account = await getDoc(accountRef)
-  if (account.exists()) return
+  if (account.exists()) {
+    const data = account.data()
+    return { ...data, uid: user.uid, role: data.role || 'user' }
+  }
   try {
     await setDoc(accountRef, {
       uid: user.uid,
       email: user.email || '',
+      role: 'user',
       createdAt: serverTimestamp(),
     })
+    return { uid: user.uid, email: user.email || '', role: 'user' }
   } catch (error) {
     const existingAccount = await getDoc(accountRef)
     if (!existingAccount.exists()) throw error
+    const data = existingAccount.data()
+    return { ...data, uid: user.uid, role: data.role || 'user' }
   }
 }
 function formatDate(value) {
   if (!value) return '—'
   return new Date(value?.toDate ? value.toDate() : value).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
 }
-async function downloadApplicationPdf(application) {
+async function createApplicationPdf(application) {
   const { jsPDF } = await import('jspdf')
   const pdf = new jsPDF()
   const left = 16
@@ -176,6 +314,7 @@ async function downloadApplicationPdf(application) {
     ['Sickness from birth', application.congenitalIllness],
     ['Class requested', application.applyingFor],
     ['Other important information', application.otherChildInformation || application.notes],
+    ['Payment control number', application.paymentControlNumber],
   ]
   pupilFields.forEach(([label, value]) => field(label, value))
 
@@ -223,7 +362,10 @@ async function downloadApplicationPdf(application) {
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-zA-Z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
-  pdf.save(`application-${safeName || 'student'}-${printable(application.id).replace(/[^a-zA-Z0-9-]/g, '')}.pdf`)
+  return {
+    fileName: `application-${safeName || 'student'}-${printable(application.id).replace(/[^a-zA-Z0-9-]/g, '')}.pdf`,
+    blob: pdf.output('blob'),
+  }
 }
 function StatusPill({ status }) {
   const styles = {
@@ -292,6 +434,16 @@ function ApplicationForm({ user }) {
   const [submitted, setSubmitted] = useState(null)
   const [error, setError] = useState('')
   const [busy,setBusy] = useState(false)
+  const [submitStage,setSubmitStage] = useState('')
+  const feedbackRef = useRef(null)
+  const [passportFile, setPassportFile] = useState(null)
+  const [birthCertificateFrontFile, setBirthCertificateFrontFile] = useState(null)
+  const [birthCertificateBackFile, setBirthCertificateBackFile] = useState(null)
+  const [motherPassportPhoto, setMotherPassportPhoto] = useState(null)
+  const [fatherPassportPhoto, setFatherPassportPhoto] = useState(null)
+  useEffect(() => {
+    if (submitted || error) feedbackRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [submitted, error])
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
@@ -322,9 +474,25 @@ function ApplicationForm({ user }) {
       setError('Please provide a phone number for the mother, father, or another contact.')
       return
     }
+    if (!passportFile || !birthCertificateFrontFile || !birthCertificateBackFile || !motherPassportPhoto || !fatherPassportPhoto) {
+      setError('Upload the student passport, both sides of the birth certificate, and passport-size photos of both parents.')
+      return
+    }
+    const documentError = validateDocumentFile(passportFile) ||
+      validateDocumentFile(birthCertificateFrontFile) ||
+      validateDocumentFile(birthCertificateBackFile) ||
+      validateImageFile(motherPassportPhoto) ||
+      validateImageFile(fatherPassportPhoto)
+    if (documentError) {
+      setError(documentError)
+      return
+    }
+    const applicationId = makeId()
+    mother.passportPhoto = `applicationDocuments/${user.uid}/${applicationId}/mother-passport`
+    father.passportPhoto = `applicationDocuments/${user.uid}/${applicationId}/father-passport`
     const studentName = value('studentName')
     const application = {
-      id: makeId(),
+      id: applicationId,
       ownerUid: user.uid,
       accountEmail: user.email || '',
       submittedAt: new Date().toISOString(),
@@ -338,7 +506,11 @@ function ApplicationForm({ user }) {
       birthPlace: value('birthPlace'),
       address: value('childAddress'),
       staysWith: value('staysWith'),
-      birthCertificateAttached: value('birthCertificateAttached'),
+      passportDocument: `applicationDocuments/${user.uid}/${applicationId}/passport`,
+      birthCertificateDocument: '',
+      birthCertificateFrontDocument: `applicationDocuments/${user.uid}/${applicationId}/birth-certificate-front`,
+      birthCertificateBackDocument: `applicationDocuments/${user.uid}/${applicationId}/birth-certificate-back`,
+      birthCertificateAttached: 'Yes',
       previousSchool: value('previousSchool'),
       religion: value('religion'),
       allergies: value('allergies'),
@@ -354,18 +526,54 @@ function ApplicationForm({ user }) {
       guardianEmail: value('guardianEmail').toLowerCase(),
     }
     setBusy(true)
+    setSubmitStage('Uploading documents…')
+    const uploadedPaths = []
     try {
-      const result = await addDoc(collection(db,'applications'), {...application, submittedAt:serverTimestamp()})
-      setSubmitted({...application,id:result.id})
-    } catch(err) { setError(`Unable to submit application: ${err.message}`); setBusy(false); return }
+      for (const [file, documentType] of [
+        [passportFile, 'passport'],
+        [birthCertificateFrontFile, 'birth-certificate-front'],
+        [birthCertificateBackFile, 'birth-certificate-back'],
+        [motherPassportPhoto, 'mother-passport'],
+        [fatherPassportPhoto, 'father-passport'],
+      ]) {
+        if (!file) continue
+        const path = `applicationDocuments/${user.uid}/${applicationId}/${documentType}`
+        await uploadBytes(storageRef(storage, path), file, { contentType: file.type })
+        uploadedPaths.push(path)
+      }
+      setSubmitStage('Saving application…')
+      await setDoc(doc(db, 'applications', applicationId), { ...application, submittedAt: serverTimestamp() })
+      setSubmitted(application)
+    } catch(err) {
+      const cleanupResults = await Promise.allSettled(uploadedPaths.map(path => deleteObject(storageRef(storage, path))))
+      const cleanupWarning = cleanupResults.some(result => result.status === 'rejected')
+        ? ' Some uploaded files could not be removed; contact the school to clean them up.'
+        : ''
+      const uploadSetupHint = err.code === 'storage/unauthorized'
+        ? ' Deploy the Storage rules with firebase.cmd deploy --project analyticsbook-c4e8f --only storage, and confirm the Firebase Storage bucket is created.'
+        : ''
+      setError(`Unable to submit application: ${err.message}${uploadSetupHint}${cleanupWarning}`)
+      setBusy(false)
+      setSubmitStage('')
+      return
+    }
     setBusy(false)
+    setSubmitStage('')
     form.reset()
+    setPassportFile(null)
+    setBirthCertificateFrontFile(null)
+    setBirthCertificateBackFile(null)
+    setMotherPassportPhoto(null)
+    setFatherPassportPhoto(null)
   }
   return <section id="admissions" className="section-space relative overflow-hidden bg-academy-deep pt-32 text-white"><div className="absolute -right-24 -top-24 h-80 w-80 rounded-full border border-white/10"/><div className="absolute -right-10 -top-10 h-52 w-52 rounded-full border border-academy-gold/20"/><div className="container-wide relative"><Reveal><div className="max-w-2xl"><span className="eyebrow !text-academy-gold">Admissions</span><h1 className="heading mt-4 text-4xl md:text-5xl">Your Child’s Journey Starts Here</h1><p className="mt-5 text-base leading-8 text-white/70 md:text-lg">Complete the application form below. Your application will be recorded as pending until the school admissions team reviews it.</p></div></Reveal>
     <div className="mt-12 grid gap-7 md:grid-cols-4">{[['01','Inquiry','Learn about the school and the program.'],['02','Application','Provide student and parent/guardian details.'],['03','Assessment','The school may contact your family about assessment.'],['04','Decision','The admissions team reviews and updates your application.']].map(([n,t,d],i)=><Reveal key={n} delay={i*.08}><div className="relative h-full border-t border-white/20 pt-5"><span className="font-serif text-4xl text-academy-gold/90">{n}</span><h3 className="mt-4 font-serif text-2xl">{t}</h3><p className="mt-3 text-sm leading-7 text-white/65">{d}</p></div></Reveal>)}</div>
     <div className="mt-14 grid gap-10 rounded-3xl bg-white p-6 text-academy-deep shadow-soft md:p-10 lg:grid-cols-[.72fr_1.28fr]">
-      <div><span className="eyebrow">Student application</span><h3 className="heading mt-4 text-3xl md:text-4xl">Apply to Wunderkind Academy</h3><p className="mt-4 leading-7 text-slate-600">Complete the pupil and parent particulars below in English or Kiswahili. Fields marked * are required. Keep your reference number after submitting.</p><div className="mt-8 rounded-xl bg-academy-light p-4 text-sm leading-6 text-slate-600"><ClipboardList size={20} className="mb-2 text-amber-700"/>Applications are submitted securely to the school admissions team.</div>{submitted&&<div role="status" className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-5"><div className="flex items-center gap-2 font-semibold text-emerald-800"><CheckCircle2 size={20}/> Application submitted</div><p className="mt-2 text-sm leading-6 text-emerald-900">Reference: <strong>{submitted.id}</strong><br/>Student: {submitted.studentName}<br/>Status: Pending review</p><button type="button" onClick={()=>setSubmitted(null)} className="mt-3 text-sm font-semibold text-emerald-800 underline">Submit another application</button></div>}</div>
+      <div><span className="eyebrow">Student application</span><h3 className="heading mt-4 text-3xl md:text-4xl">Apply to Wunderkind Academy</h3><p className="mt-4 leading-7 text-slate-600">Complete the pupil and parent particulars below in English or Kiswahili. Fields marked * are required. Keep your reference number after submitting.</p><div className="mt-8 rounded-xl bg-academy-light p-4 text-sm leading-6 text-slate-600"><ClipboardList size={20} className="mb-2 text-amber-700"/>Applications are submitted securely to the school admissions team.</div></div>
       <form onSubmit={handleSubmit} className="grid content-start gap-4 sm:grid-cols-2">
+        {submitted&&<div ref={feedbackRef} role="status" aria-live="polite" className="sm:col-span-2 rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-900"><div className="flex items-center gap-2 font-semibold text-emerald-800"><CheckCircle2 size={20}/> Application submitted successfully</div><p className="mt-2 text-sm leading-6">Reference: <strong>{submitted.id}</strong><br/>Student: {submitted.studentName}<br/>Status: Pending review. The admissions team will review your application.</p><button type="button" onClick={()=>setSubmitted(null)} className="mt-3 text-sm font-semibold text-emerald-800 underline">Submit another application</button></div>}
+        {error&&<p ref={feedbackRef} role="alert" className="sm:col-span-2 rounded-lg bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}
+        {busy&&<p className="sm:col-span-2 text-sm font-medium text-academy-deep" role="status" aria-live="polite">{submitStage}</p>}
         <div className="sm:col-span-2"><p className="mb-1 text-xs font-bold uppercase tracking-wider text-amber-700">Particulars of the pupil / Taarifa ya mwanafunzi</p><div className="gold-line"/></div>
         <div className="sm:col-span-2"><p className="text-sm font-bold text-academy-deep">1. All about a child / Kuhusu mtoto</p></div>
         <label className="text-xs font-semibold text-slate-700">Tarehe ya kujaza fomu hii / Date to fill in this form *<input required name="formDate" type="date" defaultValue={new Date().toISOString().slice(0,10)} className="form-field mt-2"/></label>
@@ -377,7 +585,11 @@ function ApplicationForm({ user }) {
         <label className="text-xs font-semibold text-slate-700">Sehemu alipozaliwa / Birth place<input name="birthPlace" className="form-field mt-2"/></label>
         <label className="text-xs font-semibold text-slate-700 sm:col-span-2">Sehemu anapoishi mtoto / Child’s home address (country, city, state, street, house number)<textarea name="childAddress" rows="2" className="form-field mt-2 resize-y"/></label>
         <label className="text-xs font-semibold text-slate-700 sm:col-span-2">Mtoto anaishi na nani? / Child stays with whom?<input name="staysWith" className="form-field mt-2"/></label>
-        <fieldset className="sm:col-span-2"><legend className="text-xs font-semibold text-slate-700">Naunganisha cheti cha kuzaliwa? / Birth certificate copy attached?</legend><div className="mt-2 flex gap-6">{['Yes / Ndiyo','No / Hapana'].map(option=><label key={option} className="flex items-center gap-2 text-sm text-slate-700"><input required type="radio" name="birthCertificateAttached" value={option.startsWith('Yes')?'Yes':'No'}/>{option}</label>)}</div></fieldset>
+        <div className="grid gap-3 sm:col-span-2 md:grid-cols-2">
+          <DocumentUploadField label="Passport photo or document" file={passportFile} onChange={setPassportFile}/>
+          <DocumentUploadField label="Birth certificate — front" file={birthCertificateFrontFile} onChange={setBirthCertificateFrontFile}/>
+          <DocumentUploadField label="Birth certificate — back" file={birthCertificateBackFile} onChange={setBirthCertificateBackFile}/>
+        </div>
         <label className="text-xs font-semibold text-slate-700 sm:col-span-2">Shule ya mwisho aliposoma / Last school attended<input name="previousSchool" className="form-field mt-2"/></label>
         <label className="text-xs font-semibold text-slate-700">Dhehebu la mtoto / Religion of child<input name="religion" className="form-field mt-2"/></label>
         <label className="text-xs font-semibold text-slate-700">Aleji ya kitu chochote / Any allergies<input name="allergies" className="form-field mt-2"/></label>
@@ -390,25 +602,27 @@ function ApplicationForm({ user }) {
         <label className="text-xs font-semibold text-slate-700">Namba ya simu / Mother’s phone<input name="motherPhone" type="tel" autoComplete="tel" className="form-field mt-2"/></label>
         <label className="text-xs font-semibold text-slate-700">Kazi / Mother’s work<input name="motherWork" className="form-field mt-2"/></label>
         <label className="text-xs font-semibold text-slate-700">NIDA – number / Mother’s NIDA number<input name="motherNida" className="form-field mt-2"/></label>
+        <div className="sm:col-span-2"><DocumentUploadField label="Mother’s passport-size photo" file={motherPassportPhoto} onChange={setMotherPassportPhoto} imageOnly/></div>
         <div className="mt-2 sm:col-span-2"><p className="text-sm font-bold text-academy-deep">2. Mlezi 2 - Jina la baba / Father’s details</p></div>
         <label className="text-xs font-semibold text-slate-700">Jina la baba / Father’s full name<input name="fatherName" autoComplete="off" className="form-field mt-2"/></label>
         <label className="text-xs font-semibold text-slate-700">Namba ya simu / Father’s phone<input name="fatherPhone" type="tel" autoComplete="tel" className="form-field mt-2"/></label>
         <label className="text-xs font-semibold text-slate-700">Kazi / Father’s work<input name="fatherWork" className="form-field mt-2"/></label>
         <label className="text-xs font-semibold text-slate-700">NIDA – number / Father’s NIDA number<input name="fatherNida" className="form-field mt-2"/></label>
+        <div className="sm:col-span-2"><DocumentUploadField label="Father’s passport-size photo" file={fatherPassportPhoto} onChange={setFatherPassportPhoto} imageOnly/></div>
         <div className="mt-2 sm:col-span-2"><p className="text-sm font-bold text-academy-deep">3. Mawasiliano ya mtu mwingine wa karibu / Another person for contact</p></div>
         <label className="text-xs font-semibold text-slate-700">Jina / Full name<input name="otherContactName" className="form-field mt-2"/></label>
         <label className="text-xs font-semibold text-slate-700">Namba ya simu / Phone number<input name="otherContactPhone" type="tel" className="form-field mt-2"/></label>
         <label className="text-xs font-semibold text-slate-700 sm:col-span-2">Anapoishi / Address<input name="otherContactAddress" className="form-field mt-2"/></label>
         <label className="text-xs font-semibold text-slate-700">NIDA – number / NIDA number<input name="otherContactNida" className="form-field mt-2"/></label>
         <label className="text-xs font-semibold text-slate-700">Email address / Barua pepe<input name="guardianEmail" type="email" autoComplete="email" defaultValue={user.email || ''} className="form-field mt-2"/></label>
-        {error&&<p role="alert" className="sm:col-span-2 rounded-lg bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}
-        <div className="sm:col-span-2"><button type="submit" disabled={busy} className="inline-flex items-center gap-2 rounded-full bg-academy-deep px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-academy-navy disabled:cursor-not-allowed disabled:opacity-60">{busy?'Submitting…':'Submit Application'} <ArrowRight size={16}/></button><p className="mt-3 text-xs leading-5 text-slate-500">Provide at least one phone number for a parent or another contact. Applications are securely stored; keep your reference number.</p></div>
+        <div className="sm:col-span-2"><button type="submit" disabled={busy} className="inline-flex items-center gap-2 rounded-full bg-academy-deep px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-academy-navy disabled:cursor-not-allowed disabled:opacity-60">{busy?submitStage:'Submit Application'} <ArrowRight size={16}/></button><p className="mt-3 text-xs leading-5 text-slate-500">Provide at least one phone number for a parent or another contact. Applications are securely stored; keep your reference number.</p></div>
       </form>
     </div></div></section>
 }
 
 function ApplicantApplications({ user }) {
   const [applications, setApplications] = useState([])
+  const [selectedApplicationId, setSelectedApplicationId] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   useEffect(() => {
@@ -430,16 +644,27 @@ function ApplicantApplications({ user }) {
     const time = value => value?.toDate ? value.toDate().getTime() : new Date(value || 0).getTime()
     return time(b.submittedAt) - time(a.submittedAt)
   })
+  const selectedApplication = sortedApplications.find(application => application.id === selectedApplicationId) || sortedApplications[0]
+  const application = selectedApplication
   return <section className="rounded-3xl bg-white p-6 text-academy-deep shadow-soft md:p-9">
-    <div className="flex flex-wrap items-start justify-between gap-3"><div><span className="eyebrow">Applicant account</span><h2 className="heading mt-3 text-3xl">My applications</h2><p className="mt-2 text-sm leading-6 text-slate-600">Your application status and submitted pupil details are shown here.</p></div><span className="rounded-full bg-academy-light px-3 py-2 text-xs font-semibold text-slate-700">{user.email}</span></div>
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><span className="eyebrow">Applicant account</span><h2 className="heading mt-3 text-3xl">My children</h2><p className="mt-2 text-sm leading-6 text-slate-600">Choose a student to view their application, payment number, and status.</p></div><span className="rounded-full bg-academy-light px-3 py-2 text-xs font-semibold text-slate-700">{user.email}</span></div>
     {loading&&<p className="mt-6 text-sm text-slate-500">Loading your applications…</p>}
     {error&&<p role="alert" className="mt-5 rounded-lg bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}
     {!loading&&!error&&sortedApplications.length===0&&<div className="mt-6 rounded-xl bg-academy-light p-5 text-sm leading-6 text-slate-600">You have not submitted an application yet. Submit the form below to see its review status here.</div>}
-    <div className="mt-6 space-y-5">{sortedApplications.map(application=><article key={application.id} className="rounded-2xl border border-slate-200 p-5 sm:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs text-slate-500">Application reference</p><p className="mt-1 font-semibold text-academy-deep">{application.id}</p><p className="mt-1 text-xs text-slate-500">Submitted {formatDate(application.submittedAt)}</p></div><StatusPill status={application.status}/></div>
+    {sortedApplications.length>0&&<><div className="mt-6"><div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-bold text-academy-deep">Your students</h3><span className="text-xs text-slate-500">{sortedApplications.length} {sortedApplications.length===1?'application':'applications'}</span></div><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{sortedApplications.map(application=><button key={application.id} type="button" onClick={()=>setSelectedApplicationId(application.id)} aria-haspopup="dialog" className="group min-w-0 rounded-2xl border border-slate-200 bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-amber-400 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"><div className="flex min-w-0 items-start justify-between gap-2"><span className="min-w-0 break-words font-semibold text-academy-deep">{application.studentName||'Unnamed student'}</span><StatusPill status={application.status}/></div><p className="mt-2 truncate text-xs text-slate-500">{application.applyingFor||'Class not specified'} · {application.id}</p>{application.paymentControlNumber?<p className="mt-3 truncate rounded-lg bg-amber-50 px-3 py-2 font-mono text-xs font-bold text-amber-900">Payment: {application.paymentControlNumber}</p>:<p className="mt-3 text-xs text-slate-500">Payment number pending</p>}<p className="mt-3 text-xs font-semibold text-amber-800">Click to view application details</p></button>)}</div></div>
+    {selectedApplication&&selectedApplicationId&&<div role="presentation" className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-950/50 p-0 backdrop-blur-sm sm:items-center sm:p-4" onMouseDown={event=>{if(event.target===event.currentTarget)setSelectedApplicationId('')}}><article key={selectedApplication.id} role="dialog" aria-modal="true" aria-labelledby="selected-student-title" className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-t-3xl bg-white p-5 text-academy-deep shadow-2xl sm:rounded-3xl sm:p-7">
+      <div className="mb-5 flex items-start justify-between gap-4 border-b border-slate-100 pb-4"><div className="min-w-0"><span className="eyebrow">Student application</span><h2 id="selected-student-title" className="mt-2 break-words font-serif text-2xl text-academy-deep">{application.studentName}</h2><p className="mt-1 text-xs text-slate-500">{application.id} · Submitted {formatDate(application.submittedAt)}</p></div><button type="button" onClick={()=>setSelectedApplicationId('')} className="shrink-0 rounded-full border border-slate-200 p-2 text-slate-600 hover:bg-slate-50" aria-label="Close application details"><X size={20}/></button></div>
+      <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex flex-wrap items-center gap-3"><StatusPill status={application.status}/><span className="text-xs text-slate-500">Application status</span></div></div>
       <div className={`mt-4 rounded-xl p-4 text-sm leading-6 ${application.status==='Approved'?'bg-emerald-50 text-emerald-900':application.status==='Rejected'?'bg-rose-50 text-rose-900':'bg-amber-50 text-amber-900'}`}>
         {application.status==='Approved'?'Your application has been approved.':application.status==='Rejected'?'Your application was not approved. Please contact the school for more information.':'Your application is awaiting review by the admissions team.'}
       </div>
+      <section className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+        <h3 className="text-sm font-bold text-academy-deep">Payment control number</h3>
+        {application.paymentControlNumber
+          ? <p className="mt-2 break-all rounded-lg bg-white px-3 py-3 font-mono text-lg font-bold tracking-wide text-academy-deep">{application.paymentControlNumber}</p>
+          : <p className="mt-2 text-sm text-slate-600">The school has not added a payment control number yet.</p>}
+        <p className="mt-2 text-xs leading-5 text-slate-600">Use this number when making the application payment. Contact the school if you need help.</p>
+      </section>
       <h3 className="mt-5 text-sm font-bold text-academy-deep">Pupil details</h3>
       <dl className="mt-3 grid gap-3 sm:grid-cols-2">
         {[
@@ -461,12 +686,13 @@ function ApplicantApplications({ user }) {
         <h3 className="text-sm font-bold text-academy-deep">Academic results</h3>
         {application.results?.length?<div className="mt-3 overflow-x-auto"><table className="w-full min-w-[460px] text-left text-sm"><thead className="border-b border-slate-100 text-xs text-slate-500"><tr><th className="py-2 pr-3 font-semibold">Subject</th><th className="py-2 pr-3 font-semibold">Assessment</th><th className="py-2 pr-3 font-semibold">Score / result</th><th className="py-2 pr-3 font-semibold">Grade</th><th className="py-2 font-semibold">Teacher comment</th></tr></thead><tbody className="divide-y divide-slate-100">{application.results.map(result=><tr key={result.id}><td className="py-3 pr-3 font-medium text-slate-800">{result.subject}</td><td className="py-3 pr-3 text-slate-600">{result.assessment}</td><td className="py-3 pr-3 text-slate-600">{result.score}</td><td className="py-3 pr-3 text-slate-600">{result.grade||'—'}</td><td className="py-3 whitespace-pre-wrap text-slate-600">{result.comment||'—'}</td></tr>)}</tbody></table></div>:<p className="mt-2 text-sm text-slate-500">No academic results have been published yet.</p>}
       </section>}
-    </article>)}</div>
+    </article></div>}</>}
   </section>
 }
 
 function ApplicantPortal({ showApplicationForm = false }) {
   const [user, setUser] = useState(null)
+  const [applicantProfile, setApplicantProfile] = useState(null)
   const [activeSection, setActiveSection] = useState(showApplicationForm ? 'new-application' : 'overview')
   const [authLoading, setAuthLoading] = useState(true)
   const [profileError, setProfileError] = useState('')
@@ -482,12 +708,14 @@ function ApplicantPortal({ showApplicationForm = false }) {
     const unsubscribe = onAuthStateChanged(auth, async currentUser => {
       if (active) {
         setUser(currentUser)
+        setApplicantProfile(null)
         setAuthLoading(true)
         setProfileError('')
       }
       if (currentUser) {
         try {
-          await ensureApplicantAccount(currentUser)
+          const profile = await ensureApplicantAccount(currentUser)
+          if (active) setApplicantProfile(profile)
         } catch (profileIssue) {
           if (active) setProfileError(`Unable to prepare your applicant account: ${profileIssue.message}`)
         }
@@ -515,6 +743,7 @@ function ApplicantPortal({ showApplicationForm = false }) {
         await ensureApplicantAccount(credential.user)
       } else {
         await signInWithEmailAndPassword(auth, normalizedEmail, password)
+        setActiveSection('overview')
       }
     } catch (authError) {
       setError(authError.message)
@@ -540,7 +769,8 @@ function ApplicantPortal({ showApplicationForm = false }) {
     if (!user) return
     setProfileError('')
     try {
-      await ensureApplicantAccount(user)
+      const profile = await ensureApplicantAccount(user)
+      setApplicantProfile(profile)
     } catch (setupError) {
       setProfileError(`Unable to prepare your applicant account: ${setupError.message}`)
     }
@@ -552,8 +782,10 @@ function ApplicantPortal({ showApplicationForm = false }) {
       setError(`Unable to sign out: ${signOutError.message}`)
     }
   }
-  return <main className="min-h-screen overflow-x-hidden bg-academy-light px-3 pb-16 pt-24 sm:px-4 sm:pt-28">
+  const standalone = !showApplicationForm || !!user
+  return <>{!standalone&&<Navbar applyPage/>}<main className={`min-h-screen overflow-x-hidden bg-academy-light px-3 pb-16 ${standalone?'pt-5 sm:px-4 sm:pt-8':'pt-24 sm:px-4 sm:pt-28'}`}>
     <div className="container-wide min-w-0">
+      {user&&<header className="mb-5 flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-2xl bg-academy-deep p-4 text-white shadow-soft sm:mb-6 sm:gap-5 sm:p-5"><a href={siteBase} className="flex min-w-0 items-center gap-3" aria-label="Wunderkind Academy home"><SchoolMark className="h-12 w-12 sm:h-14 sm:w-14"/><span className="min-w-0"><span className="block font-serif text-base leading-tight sm:text-lg">Wunderkind Academy</span><span className="mt-1 block text-xs text-white/65">Applicant portal</span></span></a><div className="flex min-w-0 items-center gap-3 sm:gap-4"><span className="hidden max-w-[240px] truncate text-xs text-white/70 sm:block">{user.email}</span><button type="button" onClick={logout} className="inline-flex shrink-0 items-center gap-2 rounded-full border border-white/25 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10 sm:px-4 sm:py-2.5 sm:text-sm"><LogOut size={16}/> Sign out</button></div></header>}
       {authLoading?<div className="mx-auto max-w-2xl rounded-3xl bg-white p-8 text-center text-slate-600 shadow-soft">Checking your account…</div>:!user?<div className="mx-auto max-w-xl rounded-3xl bg-white p-7 shadow-soft sm:p-10">
         <span className="eyebrow">Wunderkind Academy admissions</span>
         <h1 className="heading mt-4 text-3xl text-academy-deep">{registering?'Create your applicant account':'Applicant sign in'}</h1>
@@ -568,30 +800,29 @@ function ApplicantPortal({ showApplicationForm = false }) {
         </form>
         {!registering&&<button type="button" onClick={resetPassword} className="mt-4 text-sm font-semibold text-amber-800 underline">Forgot password?</button>}
         <p className="mt-6 text-center text-sm text-slate-600">{registering?'Already have an account?':'New to Wunderkind Academy?'} <button type="button" onClick={()=>{setRegistering(!registering);setError('');setNotice('')}} className="font-semibold text-academy-deep underline">{registering?'Sign in':'Create an account'}</button></p>
-      </div>:<div className="grid min-w-0 gap-4 sm:gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
-        <aside className="h-fit min-w-0 rounded-2xl bg-academy-deep p-3 text-white shadow-soft sm:p-4 lg:sticky lg:top-24">
-          <p className="px-3 py-2 text-[10px] font-bold uppercase tracking-[.18em] text-white/50">Applicant portal</p>
+      </div>:<div className="grid min-w-0 gap-4 sm:gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
+        <aside className="h-fit min-w-0 rounded-2xl bg-white p-3 shadow-sm sm:p-4 lg:sticky lg:top-6">
+          <p className="px-3 py-2 text-[10px] font-bold uppercase tracking-[.18em] text-slate-400">Your account</p>
           <nav className="grid grid-cols-2 gap-2 lg:mt-2 lg:flex lg:flex-col" aria-label="Applicant dashboard sections">
             {[
               ['overview','Dashboard',LayoutDashboard],
               ['applications','My applications',ClipboardList],
               ['new-application','New application',FileText],
               ['profile','Account',UserRound],
-            ].map(([key,label,Icon])=><button key={key} type="button" onClick={()=>setActiveSection(key)} aria-current={activeSection===key?'page':undefined} className={`flex min-w-0 items-center gap-2 rounded-xl px-2.5 py-3 text-left text-xs font-medium leading-4 transition sm:gap-3 sm:px-3 sm:text-sm lg:w-full ${activeSection===key?'bg-white text-academy-deep':'text-white/75 hover:bg-white/10 hover:text-white'}`}><Icon className="shrink-0" size={18}/><span className="min-w-0">{label}</span></button>)}
+            ].map(([key,label,Icon])=><button key={key} type="button" onClick={()=>setActiveSection(key)} aria-current={activeSection===key?'page':undefined} className={`flex min-h-11 min-w-0 items-center gap-2 rounded-xl px-2.5 py-3 text-left text-xs font-semibold leading-4 transition sm:gap-3 sm:px-3 sm:text-sm lg:w-full ${activeSection===key?'bg-academy-deep text-white':'text-slate-600 hover:bg-academy-light hover:text-academy-deep'}`}><Icon className="shrink-0" size={18}/><span className="min-w-0">{label}</span></button>)}
           </nav>
-          <div className="mt-5 hidden border-t border-white/10 pt-4 lg:block"><p className="truncate px-3 text-xs text-white/55">{user.email}</p><button type="button" onClick={logout} className="mt-3 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-white/75 hover:bg-white/10 hover:text-white"><LogOut size={18}/> Sign out</button></div>
         </aside>
         <div className="w-full min-w-0 space-y-4 sm:space-y-6">
-        <header className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-sm sm:gap-4 sm:p-5"><div className="min-w-0"><p className="text-xs font-semibold uppercase tracking-wider text-amber-700">Applicant portal</p><h1 className="mt-1 break-words font-serif text-xl text-academy-deep sm:text-2xl">{activeSection==='overview'?'Welcome back':activeSection==='applications'?'My applications':activeSection==='new-application'?'New application':'Account settings'}</h1></div><button type="button" onClick={logout} className="inline-flex shrink-0 items-center gap-2 rounded-full border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 lg:hidden sm:px-4 sm:py-2.5 sm:text-sm"><LogOut size={16}/> Sign out</button></header>
+        <header className="min-w-0 rounded-2xl bg-white p-4 shadow-sm sm:p-5"><p className="text-xs font-semibold uppercase tracking-wider text-amber-700">Applicant portal</p><h1 className="mt-1 break-words font-serif text-xl text-academy-deep sm:text-2xl">{activeSection==='overview'?'Welcome back':activeSection==='applications'?'My applications':activeSection==='new-application'?'New application':'Account settings'}</h1></header>
         {profileError&&<div role="alert" className="rounded-xl bg-rose-50 p-4 text-sm text-rose-800">{profileError}<button type="button" onClick={retryAccountSetup} className="ml-3 font-semibold underline">Retry</button></div>}
-        {activeSection==='overview'&&<section className="rounded-3xl bg-white p-6 shadow-soft sm:p-8"><span className="eyebrow">Your school journey</span><h2 className="heading mt-3 text-3xl text-academy-deep">Manage your child’s application</h2><p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">Submit an application, follow its review status, and see academic results once they are published after approval.</p><div className="mt-6 grid gap-4 sm:grid-cols-2"><button type="button" onClick={()=>setActiveSection('applications')} className="rounded-2xl border border-slate-200 p-5 text-left transition hover:border-amber-300 hover:bg-amber-50/40"><ClipboardList className="text-amber-700" size={22}/><h3 className="mt-3 font-semibold text-academy-deep">View applications</h3><p className="mt-1 text-sm text-slate-500">Check admission decisions and submitted information.</p></button><button type="button" onClick={()=>setActiveSection('new-application')} className="rounded-2xl border border-slate-200 p-5 text-left transition hover:border-amber-300 hover:bg-amber-50/40"><FileText className="text-amber-700" size={22}/><h3 className="mt-3 font-semibold text-academy-deep">Start an application</h3><p className="mt-1 text-sm text-slate-500">Apply for a place at Wunderkind Academy.</p></button></div></section>}
+        {activeSection==='overview'&&<section className="rounded-3xl bg-white p-6 shadow-soft sm:p-8"><span className="eyebrow">Your school journey</span><h2 className="heading mt-3 text-3xl text-academy-deep">Manage your child’s application</h2><p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">Submit an application, follow its review status, see payment control numbers, and view academic results once they are published after approval.</p><div className="mt-6 grid gap-4 sm:grid-cols-2"><button type="button" onClick={()=>setActiveSection('applications')} className="rounded-2xl border border-slate-200 p-5 text-left transition hover:border-amber-300 hover:bg-amber-50/40"><ClipboardList className="text-amber-700" size={22}/><h3 className="mt-3 font-semibold text-academy-deep">View applications</h3><p className="mt-1 text-sm text-slate-500">Check admission decisions, payment control numbers and submitted information.</p></button><button type="button" onClick={()=>setActiveSection('new-application')} className="rounded-2xl border border-slate-200 p-5 text-left transition hover:border-amber-300 hover:bg-amber-50/40"><FileText className="text-amber-700" size={22}/><h3 className="mt-3 font-semibold text-academy-deep">Start an application</h3><p className="mt-1 text-sm text-slate-500">Apply for a place at Wunderkind Academy.</p></button></div></section>}
         {activeSection==='applications'&&<ApplicantApplications user={user}/>}
         {activeSection==='new-application'&&!profileError&&<ApplicationForm key={user.uid} user={user}/>}
-        {activeSection==='profile'&&<section className="rounded-3xl bg-white p-6 shadow-soft sm:p-8"><span className="eyebrow">Account settings</span><h2 className="heading mt-3 text-3xl text-academy-deep">Your account</h2><div className="mt-6 rounded-xl bg-slate-50 p-4"><p className="text-xs text-slate-500">Sign-in email</p><p className="mt-1 break-all text-sm font-semibold text-academy-deep">{user.email}</p></div><div className="mt-5 flex flex-wrap gap-3"><button type="button" onClick={resetPassword} className="rounded-full border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Send password reset email</button><button type="button" onClick={logout} className="inline-flex items-center gap-2 rounded-full bg-academy-deep px-4 py-2.5 text-sm font-semibold text-white hover:bg-academy-navy"><LogOut size={16}/> Sign out</button></div>{notice&&<p role="status" className="mt-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">{notice}</p>}{error&&<p role="alert" className="mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}</section>}
+        {activeSection==='profile'&&<section className="rounded-3xl bg-white p-6 shadow-soft sm:p-8"><span className="eyebrow">Account settings</span><h2 className="heading mt-3 text-3xl text-academy-deep">Your account</h2><div className="mt-6 grid gap-3 sm:grid-cols-2"><div className="rounded-xl bg-slate-50 p-4"><p className="text-xs text-slate-500">Sign-in email</p><p className="mt-1 break-all text-sm font-semibold text-academy-deep">{applicantProfile?.email||user.email}</p></div><div className="rounded-xl bg-slate-50 p-4"><p className="text-xs text-slate-500">Account role</p><p className="mt-1 text-sm font-semibold capitalize text-academy-deep">{applicantProfile?.role||'user'}</p></div><div className="rounded-xl bg-slate-50 p-4"><p className="text-xs text-slate-500">Account created</p><p className="mt-1 text-sm font-semibold text-academy-deep">{formatDate(applicantProfile?.createdAt)}</p></div></div><div className="mt-5 flex flex-wrap gap-3"><button type="button" onClick={resetPassword} className="rounded-full border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Send password reset email</button><button type="button" onClick={logout} className="inline-flex items-center gap-2 rounded-full bg-academy-deep px-4 py-2.5 text-sm font-semibold text-white hover:bg-academy-navy"><LogOut size={16}/> Sign out</button></div>{notice&&<p role="status" className="mt-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">{notice}</p>}{error&&<p role="alert" className="mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}</section>}
         </div>
       </div>}
     </div>
-  </main>
+  </main>{!standalone&&<Footer applyPage/>}</>
 }
 
 function AdmissionsIntro() {
@@ -622,6 +853,51 @@ function AdminLogin() {
     finally {setBusy(false)}
   }
   return <div className="min-h-screen bg-academy-light px-4 py-12"><div className="mx-auto max-w-md"><a href={siteBase} className="mb-8 inline-flex items-center gap-3"><SchoolMark className="h-20 w-20 object-contain" /><span><span className="block font-serif text-xl text-academy-deep">Wunderkind Academy</span><span className="text-xs text-slate-500">Admissions administration</span></span></a><div className="rounded-3xl bg-white p-8 shadow-soft sm:p-10"><div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-700"><ShieldCheck size={28}/></div><h1 className="heading mt-5 text-3xl text-academy-deep">Admin sign in</h1><p className="mt-3 text-sm leading-6 text-slate-600">Sign in using your authorized school administrator account.</p><form onSubmit={submit} className="mt-7 space-y-4"><label className="block text-xs font-semibold text-slate-700">Email<input type="email" required value={username} onChange={e=>setUsername(e.target.value)} className="form-field mt-2" autoComplete="username" placeholder="admin@school.org"/></label><label className="block text-xs font-semibold text-slate-700">Password<input required value={password} onChange={e=>setPassword(e.target.value)} type="password" className="form-field mt-2" autoComplete="current-password" placeholder="Password"/></label>{error&&<p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}<button className="flex w-full items-center justify-center gap-2 rounded-full bg-academy-deep px-5 py-3.5 text-sm font-semibold text-white hover:bg-academy-navy">Sign in <ArrowRight size={16}/></button></form><a href={siteBase} className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-academy-deep"><ArrowRight className="rotate-180" size={15}/> Return to school website</a></div></div></div>
+}
+
+function PaymentControlNumberEditor({ application }) {
+  const [controlNumber, setControlNumber] = useState(application.paymentControlNumber || '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
+  useEffect(() => {
+    setControlNumber(application.paymentControlNumber || '')
+  }, [application.paymentControlNumber])
+
+  async function saveControlNumber(event) {
+    event.preventDefault()
+    const value = controlNumber.trim()
+    if (value.length > 100) {
+      setError('Control number must be 100 characters or fewer.')
+      return
+    }
+    setSaving(true)
+    setError('')
+    setNotice('')
+    try {
+      await updateDoc(doc(db, 'applications', application.id), { paymentControlNumber: value })
+      setNotice(value
+        ? 'Control number saved. The applicant can now see it in their account.'
+        : 'Payment control number cleared.')
+    } catch (saveError) {
+      setError(`Unable to save payment control number: ${saveError.message}`)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return <section className="rounded-2xl border border-amber-200 bg-amber-50/60 p-5">
+    <h3 className="text-sm font-bold text-academy-deep">Payment control number</h3>
+    <p className="mt-1 text-xs leading-5 text-slate-600">Add the number for this student. It will appear in the applicant’s account after saving.</p>
+    <form onSubmit={saveControlNumber} className="mt-4 flex flex-wrap items-end gap-3">
+      <label className="min-w-[220px] flex-1 text-xs font-semibold text-slate-700">Control number
+        <input value={controlNumber} onChange={event => setControlNumber(event.target.value)} maxLength={100} className="form-field mt-2" placeholder="Enter payment control number"/>
+      </label>
+      <button type="submit" disabled={saving} className="rounded-full bg-academy-deep px-4 py-3 text-xs font-semibold text-white hover:bg-academy-navy disabled:cursor-wait disabled:opacity-60">{saving ? 'Saving…' : 'Save control number'}</button>
+    </form>
+    {error&&<p role="alert" className="mt-3 rounded-lg bg-rose-50 p-3 text-xs text-rose-800">{error}</p>}
+    {notice&&<p role="status" className="mt-3 rounded-lg bg-emerald-50 p-3 text-xs text-emerald-800">{notice}</p>}
+  </section>
 }
 
 function ApplicationResultsEditor({ application }) {
@@ -700,6 +976,50 @@ function AdminDashboard({ onLogout }) {
   const [search,setSearch] = useState('')
   const [selected,setSelected] = useState(null)
   const [notice,setNotice] = useState('')
+  const [pdfDownloadingId,setPdfDownloadingId] = useState('')
+  const [downloadStage,setDownloadStage] = useState('')
+  const [documentDownloadingPath,setDocumentDownloadingPath] = useState('')
+  const [downloadError,setDownloadError] = useState('')
+  const [downloadNotice,setDownloadNotice] = useState('')
+  async function downloadStudentZip(application) {
+    setPdfDownloadingId(application.id)
+    setDownloadStage('Preparing application PDF…')
+    setDownloadError('')
+    setDownloadNotice('')
+    try {
+      const result = await createStudentArchive(application, setDownloadStage)
+      saveBlob(result.blob, result.fileName)
+      setDownloadNotice(result.unavailableDocuments.length
+        ? `Downloaded ${result.fileName} with ${result.downloadedCount} document(s). These could not be added: ${result.unavailableDocuments.join(', ')}. See download-report.txt inside the ZIP.`
+        : `Downloaded ${result.fileName} with the application PDF and ${result.downloadedCount} document(s) in images/.`)
+    } catch (error) {
+      console.error('Student ZIP download failed', error)
+      const message = error.message || String(error)
+      const hint = message.includes('storage/unauthorized')
+        ? ' Storage denied the read. Verify this signed-in admin has an admins/{uid} document with active: true, then deploy Storage rules.'
+        : message.includes('storage/object-not-found')
+          ? ' The Storage object is missing. Confirm the application document path still exists in the configured bucket.'
+          : ` Check the bucket CORS configuration includes ${window.location.origin}, then deploy the latest Storage rules.`
+      setDownloadError(`ZIP download failed: ${message}.${hint}`)
+    } finally {
+      setPdfDownloadingId('')
+      setDownloadStage('')
+    }
+  }
+  async function downloadDocument(path, fileName, label) {
+    setDocumentDownloadingPath(path)
+    setDownloadError('')
+    setDownloadNotice('')
+    try {
+      await downloadPrivateDocument(path, fileName)
+      setDownloadNotice(`${label} downloaded.`)
+    } catch (error) {
+      console.error(`Unable to download ${label}`, error)
+      setDownloadError(`Unable to download ${label}: ${error.message}. Check that Storage rules are deployed and the bucket CORS configuration includes this website.`)
+    } finally {
+      setDocumentDownloadingPath('')
+    }
+  }
   const refresh = () => setNotice('Data synchronizes automatically with Firestore.')
   const counts = useMemo(() => ({
     All: applications.length,
@@ -716,7 +1036,24 @@ function AdminDashboard({ onLogout }) {
   }
   async function removeApplication(id) {
     if(!window.confirm('Permanently delete this application?')) return
-    try {await deleteDoc(doc(db,'applications',id));setSelected(null);setNotice('Application deleted.')}
+    try {
+      const application = applications.find(item => item.id === id)
+      await deleteDoc(doc(db,'applications',id))
+      const documentPaths = [
+        application?.passportDocument,
+        application?.birthCertificateDocument,
+        application?.birthCertificateFrontDocument,
+        application?.birthCertificateBackDocument,
+        application?.mother?.passportPhoto,
+        application?.father?.passportPhoto,
+      ].filter(Boolean)
+      const cleanupResults = await Promise.allSettled(documentPaths.map(path => deleteObject(storageRef(storage, path))))
+      const cleanupFailed = cleanupResults.some(result => result.status === 'rejected')
+      setSelected(null)
+      setNotice(cleanupFailed
+        ? 'Application deleted, but one or more uploaded documents could not be removed from Storage.'
+        : 'Application and uploaded documents deleted.')
+    }
     catch(err){setNotice(`Delete failed: ${err.message}`)}
   }
   const current = selected ? applications.find(a=>a.id===selected.id) || selected : null
@@ -763,8 +1100,25 @@ function AdminDashboard({ onLogout }) {
       </div>
     </main>
     <AnimatePresence>{current&&<motion.div className="fixed inset-0 z-50 flex justify-end bg-slate-950/40" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} onMouseDown={e=>{if(e.target===e.currentTarget)setSelected(null)}}><motion.aside initial={{x:60}} animate={{x:0}} exit={{x:60}} transition={{type:'tween',duration:.22}} className="h-full w-full max-w-xl overflow-y-auto bg-white shadow-2xl"><div className="sticky top-0 z-10 flex items-start justify-between border-b border-slate-100 bg-white p-6"><div><p className="text-xs font-semibold uppercase tracking-wider text-amber-700">Application review</p><h2 className="mt-2 font-serif text-2xl text-academy-deep">{current.studentName}</h2><p className="mt-1 text-xs text-slate-500">{current.id}</p></div><button onClick={()=>setSelected(null)} className="rounded-full p-2 text-slate-500 hover:bg-slate-100" aria-label="Close details"><X size={20}/></button></div><div className="space-y-6 p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><StatusPill status={current.status}/><span className="text-xs text-slate-500">Submitted {formatDate(current.submittedAt)}</span></div><button type="button" onClick={async()=>{try{await downloadApplicationPdf(current)}catch(err){setNotice(`PDF download failed: ${err.message}`)}}} className="inline-flex items-center gap-2 rounded-full bg-academy-deep px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-academy-navy"><Download size={15}/> Download PDF</button></div>
+      <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><StatusPill status={current.status}/><span className="text-xs text-slate-500">Submitted {formatDate(current.submittedAt)}</span></div><button type="button" onClick={()=>downloadStudentZip(current)} disabled={pdfDownloadingId===current.id} className="inline-flex items-center gap-2 rounded-full bg-academy-deep px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-academy-navy disabled:cursor-wait disabled:opacity-60"><Download size={15}/> {pdfDownloadingId===current.id?downloadStage||'Preparing ZIP…':'Download student ZIP'}</button></div>
+      {downloadError&&<p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm leading-6 text-rose-800">{downloadError}</p>}
+      {downloadNotice&&<p role="status" aria-live="polite" className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm leading-6 text-emerald-800">{downloadNotice}</p>}
+      <PaymentControlNumberEditor application={current}/>
       <section><h3 className="mb-3 text-sm font-bold text-academy-deep">Pupil particulars / Taarifa ya mwanafunzi</h3><div className="grid grid-cols-2 gap-3">{[['Form date',current.formDate],['Full name',current.studentName],['Nickname',current.nickname],['Sex',current.gender],['Date of birth',formatDate(current.dateOfBirth)],['Nationality',current.nationality],['Birth place',current.birthPlace],['Home address',current.address],['Stays with',current.staysWith],['Birth certificate attached',current.birthCertificateAttached],['Last school',current.previousSchool],['Religion',current.religion],['Allergies',current.allergies],['Sickness from birth',current.congenitalIllness],['Class requested',current.applyingFor]].map(([label,value])=><div key={label} className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">{label}</p><p className="mt-1 whitespace-pre-wrap text-sm font-medium text-slate-800">{value||'—'}</p></div>)}</div>{(current.otherChildInformation||current.notes)&&<div className="mt-3 rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">Other important information</p><p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-800">{current.otherChildInformation||current.notes}</p></div>}</section>
+      <section><h3 className="mb-3 text-sm font-bold text-academy-deep">Private application documents</h3><div className="flex flex-wrap gap-2">
+        {[
+          ['Passport', current.passportDocument, 'passport'],
+          ['Birth certificate (front)', current.birthCertificateFrontDocument, 'birth-certificate-front'],
+          ['Birth certificate (back)', current.birthCertificateBackDocument, 'birth-certificate-back'],
+          ['Mother’s passport photo', current.mother?.passportPhoto, 'mother-passport'],
+          ['Father’s passport photo', current.father?.passportPhoto, 'father-passport'],
+          ...(!current.birthCertificateFrontDocument && !current.birthCertificateBackDocument
+            ? [['Birth certificate (legacy)', current.birthCertificateDocument, 'birth-certificate']]
+            : []),
+        ].map(([label, path, fileName]) => path
+          ? <button key={label} type="button" onClick={()=>downloadDocument(path, `${current.id}-${fileName}`, label)} disabled={documentDownloadingPath===path} className="inline-flex items-center gap-2 rounded-full border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60"><Download size={14}/>{documentDownloadingPath===path?'Downloading…':label}</button>
+          : <span key={label} className="rounded-full bg-slate-100 px-3 py-2 text-xs text-slate-500">{label}: not provided</span>)}
+      </div></section>
       <section><h3 className="mb-3 text-sm font-bold text-academy-deep">Mother / Mlezi 1</h3><div className="grid grid-cols-2 gap-3">{[['Full name',current.mother?.name||current.guardianRelationship==='Mother'&&current.guardianName],['Phone',current.mother?.phone||current.guardianRelationship==='Mother'&&current.guardianPhone],['Work',current.mother?.work],['NIDA number',current.mother?.nida]].map(([label,value])=><div key={label} className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">{label}</p><p className="mt-1 text-sm font-medium text-slate-800">{value||'—'}</p></div>)}</div></section>
       <section><h3 className="mb-3 text-sm font-bold text-academy-deep">Father / Mlezi 2</h3><div className="grid grid-cols-2 gap-3">{[['Full name',current.father?.name||current.guardianRelationship==='Father'&&current.guardianName],['Phone',current.father?.phone||current.guardianRelationship==='Father'&&current.guardianPhone],['Work',current.father?.work],['NIDA number',current.father?.nida]].map(([label,value])=><div key={label} className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">{label}</p><p className="mt-1 text-sm font-medium text-slate-800">{value||'—'}</p></div>)}</div></section>
       <section><h3 className="mb-3 text-sm font-bold text-academy-deep">Other contact / Mawasiliano ya mtu mwingine</h3><div className="grid grid-cols-2 gap-3">{[['Full name',current.otherContact?.name||(!current.mother&&!current.father&&!['Mother','Father'].includes(current.guardianRelationship)?current.guardianName:'')],['Phone',current.otherContact?.phone||(!current.mother&&!current.father&&!['Mother','Father'].includes(current.guardianRelationship)?current.guardianPhone:'')],['Address',current.otherContact?.address||(!current.mother&&!current.father&&!['Mother','Father'].includes(current.guardianRelationship)?current.address:'')],['NIDA number',current.otherContact?.nida],['Email',current.guardianEmail]].map(([label,value])=><div key={label} className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">{label}</p><p className="mt-1 text-sm font-medium text-slate-800">{value||'—'}</p></div>)}</div></section>
@@ -803,15 +1157,27 @@ function ContentManager() {
 function AdminPage() {
   const [user,setUser]=useState(undefined)
   const [allowed,setAllowed]=useState(false)
+  const [checking,setChecking]=useState(false)
+  const [checkError,setCheckError]=useState('')
   useEffect(()=>onAuthStateChanged(auth,async current=>{
     setUser(current)
-    if (!current) {setAllowed(false);return}
-    try {const snap=await getDoc(doc(db,'admins',current.uid));setAllowed(snap.exists() && snap.data().active===true)}
-    catch {setAllowed(false)}
+    setAllowed(false)
+    setCheckError('')
+    if (!current) {setChecking(false);return}
+    setChecking(true)
+    try {
+      const snap=await getDoc(doc(db,'admins',current.uid))
+      setAllowed(snap.exists() && snap.data().active===true)
+    } catch (error) {
+      setCheckError(error.message)
+    } finally {
+      setChecking(false)
+    }
   }),[])
   if(user===undefined) return <div className="p-12">Checking administrator session…</div>
   if(!user) return <AdminLogin/>
-  if(!allowed) return <div className="mx-auto max-w-lg p-12"><h1 className="text-2xl font-bold">Access restricted</h1><p className="mt-4">Your account is not listed as an active school administrator.</p><button className="mt-5 underline" onClick={()=>signOut(auth)}>Sign out</button></div>
+  if(checking) return <div className="p-12">Checking administrator access…</div>
+  if(!allowed) return <div className="mx-auto max-w-lg p-12"><h1 className="text-2xl font-bold">{checkError?'Unable to verify administrator access':'Access restricted'}</h1>{checkError?<><p role="alert" className="mt-4 text-rose-700">Firestore could not read the administrator record: {checkError}</p><p className="mt-4 text-sm">Confirm Firestore exists in project <strong>{auth.app.options.projectId}</strong>, deploy the Firestore rules, and check that this account can read its own admins document.</p></>:<><p className="mt-4">No active administrator record was found for this signed-in account.</p><dl className="mt-5 space-y-3 rounded-xl bg-slate-50 p-4 text-sm"><div><dt className="text-slate-500">Signed-in email</dt><dd className="mt-1 break-all font-medium">{user.email||'—'}</dd></div><div><dt className="text-slate-500">Auth UID (must exactly match the admins document ID)</dt><dd className="mt-1 break-all font-mono">{user.uid}</dd></div><div><dt className="text-slate-500">Firebase project</dt><dd className="mt-1 font-mono">{auth.app.options.projectId}</dd></div></dl><p className="mt-4 text-sm leading-6">In Firestore → Data, create or check <code>admins/{user.uid}</code> and make sure it has the boolean field <code>active: true</code>. This must be the same project shown above.</p></>}<button className="mt-5 underline" onClick={()=>signOut(auth)}>Sign out</button></div>
   return <AdminDashboard onLogout={()=>signOut(auth)}/>
 }
 
@@ -821,6 +1187,6 @@ export default function App() {
   const isApplyPage = currentPath === applyPath.replace(/\/+$/,'')
   const isAccountPage = currentPath === accountPath.replace(/\/+$/,'')
   if(isAdmin) return <AdminPage/>
-  if(isApplyPage||isAccountPage) return <><Navbar applyPage/><ApplicantPortal showApplicationForm={isApplyPage}/>{!isAccountPage&&<Footer applyPage/>}</>
+  if(isApplyPage||isAccountPage) return <ApplicantPortal showApplicationForm={isApplyPage}/>
   return <><Navbar/><main><Hero/><About/><Academics/><WhyUs/><Facilities/><StudentLife/><NewsEvents/><AdmissionsIntro/><Contact/></main><Footer/></>
 }

@@ -1,0 +1,32 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isAdmin() {
+      return request.auth != null &&
+        firestore.get(/databases/(default)/documents/admins/$(request.auth.uid)).data.active == true;
+    }
+
+    match /applicationDocuments/{uid}/{applicationId}/{documentType} {
+      allow read: if request.auth != null &&
+        (request.auth.uid == uid || isAdmin());
+      allow create, update: if request.auth != null &&
+        request.auth.uid == uid &&
+        applicationId.matches('WA-[A-Z0-9-]+') &&
+        documentType in [
+          'passport',
+          'birth-certificate-front',
+          'birth-certificate-back',
+          'birth-certificate',
+          'mother-passport',
+          'father-passport'
+        ] &&
+        request.resource.size <= 10 * 1024 * 1024 &&
+        (documentType in ['mother-passport', 'father-passport']
+          ? request.resource.contentType.matches('image/.*')
+          : request.resource.contentType.matches('image/.*') ||
+            request.resource.contentType == 'application/pdf');
+      allow delete: if request.auth != null &&
+        (request.auth.uid == uid || isAdmin());
+    }
+  }
+}
