@@ -8,6 +8,8 @@ import yazl from 'yazl'
 const projectId = 'analyticsbook-c4e8f'
 const bucketName = `${projectId}.firebasestorage.app`
 const allowedOrigins = [
+  'https://wunderkindacademyschool.org',
+  'https://www.wunderkindacademyschool.org',
   'https://wunderkindsacademyschool.org',
   'https://www.wunderkindsacademyschool.org',
   'http://localhost:5173',
