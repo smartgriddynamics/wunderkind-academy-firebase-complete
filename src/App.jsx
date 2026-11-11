@@ -596,7 +596,7 @@ function ApplicationForm({ user }) {
             aria-valuemax={100}
             aria-valuenow={submitProgress}
           >
-            <div className="h-full rounded-full bg-amber-600 transition-[width] duration-300 ease-out" style={{ width: `${submitProgress}%` }}/>
+            <div className="application-progress-fill h-full rounded-full transition-[width] duration-300 ease-out" style={{ width: `${submitProgress}%` }}/>
           </div>
           <p className="mt-2 text-xs text-slate-500">Documents upload together to save time. Keep this page open until submission finishes.</p>
         </div>}
@@ -1016,7 +1016,7 @@ function AdminDashboard({ onLogout }) {
   const [downloadNotice,setDownloadNotice] = useState('')
   async function downloadStudentZip(application) {
     setPdfDownloadingId(application.id)
-    setDownloadStage('Preparing application PDF…')
+    setDownloadStage('Connecting to secure server…')
     setDownloadError('')
     setDownloadNotice('')
     try {
@@ -1136,6 +1136,16 @@ function AdminDashboard({ onLogout }) {
       <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><StatusPill status={current.status}/><span className="text-xs text-slate-500">Submitted {formatDate(current.submittedAt)}</span></div><button type="button" onClick={()=>downloadStudentZip(current)} disabled={pdfDownloadingId===current.id} className="inline-flex items-center gap-2 rounded-full bg-academy-deep px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-academy-navy disabled:cursor-wait disabled:opacity-60"><Download size={15}/> {pdfDownloadingId===current.id?downloadStage||'Preparing ZIP…':'Download student ZIP'}</button></div>
       {downloadError&&<p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm leading-6 text-rose-800">{downloadError}</p>}
       {downloadNotice&&<p role="status" aria-live="polite" className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm leading-6 text-emerald-800">{downloadNotice}</p>}
+      {pdfDownloadingId===current.id&&<div className="rounded-xl border border-slate-200 bg-slate-50 p-4" role="status" aria-live="polite">
+        <div className="flex items-center justify-between gap-3 text-sm">
+          <span className="font-medium text-academy-deep">{downloadStage||'Requesting secure download…'}</span>
+          <span className="shrink-0 text-xs font-semibold text-amber-800">Please wait</span>
+        </div>
+        <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-200" aria-hidden="true">
+          <div className="download-progress-indicator h-full w-2/5 rounded-full bg-amber-600"/>
+        </div>
+        <p className="mt-2 text-xs text-slate-500">The server is collecting the application documents securely.</p>
+      </div>}
       <PaymentControlNumberEditor application={current}/>
       <section><h3 className="mb-3 text-sm font-bold text-academy-deep">Pupil particulars / Taarifa ya mwanafunzi</h3><div className="grid grid-cols-2 gap-3">{[['Form date',current.formDate],['Full name',current.studentName],['Nickname',current.nickname],['Sex',current.gender],['Date of birth',formatDate(current.dateOfBirth)],['Nationality',current.nationality],['Birth place',current.birthPlace],['Home address',current.address],['Stays with',current.staysWith],['Birth certificate attached',current.birthCertificateAttached],['Last school',current.previousSchool],['Religion',current.religion],['Allergies',current.allergies],['Sickness from birth',current.congenitalIllness],['Class requested',current.applyingFor]].map(([label,value])=><div key={label} className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">{label}</p><p className="mt-1 whitespace-pre-wrap text-sm font-medium text-slate-800">{value||'—'}</p></div>)}</div>{(current.otherChildInformation||current.notes)&&<div className="mt-3 rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">Other important information</p><p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-800">{current.otherChildInformation||current.notes}</p></div>}</section>
       <section><h3 className="mb-3 text-sm font-bold text-academy-deep">Private application documents</h3><div className="flex flex-wrap gap-2">

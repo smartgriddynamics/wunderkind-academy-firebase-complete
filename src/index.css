@@ -74,6 +74,26 @@ img { display: block; max-width: 100%; }
   border-color: #D6A84F;
   box-shadow: 0 0 0 3px #D6A84F25;
 }
+.application-progress-fill {
+  background-color: #b7791f;
+  background-image: linear-gradient(110deg, #b7791f 0%, #b7791f 40%, #f6d88c 50%, #b7791f 60%, #b7791f 100%);
+  background-size: 200% 100%;
+  animation: application-progress-shimmer 1.5s linear infinite;
+}
+@keyframes application-progress-shimmer {
+  to { background-position: -200% 0; }
+}
+.download-progress-indicator {
+  animation: download-progress 1.4s ease-in-out infinite;
+}
+@keyframes download-progress {
+  from { transform: translateX(-110%); }
+  to { transform: translateX(260%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .application-progress-fill { animation: none; }
+  .download-progress-indicator { animation-duration: 3s; }
+}
 @media (max-width: 640px) {
   .container-wide { width: min(100% - 32px, 1240px); }
   .section-space { padding-block: 68px; }
