@@ -583,23 +583,6 @@ function ApplicationForm({ user }) {
       <form onSubmit={handleSubmit} className="grid content-start gap-4 sm:grid-cols-2">
         {submitted&&<div ref={feedbackRef} role="status" aria-live="polite" className="sm:col-span-2 rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-900"><div className="flex items-center gap-2 font-semibold text-emerald-800"><CheckCircle2 size={20}/> Application submitted successfully</div><p className="mt-2 text-sm leading-6">Reference: <strong>{submitted.id}</strong><br/>Student: {submitted.studentName}<br/>Status: Pending review. The admissions team will review your application.</p><button type="button" onClick={()=>setSubmitted(null)} className="mt-3 text-sm font-semibold text-emerald-800 underline">Submit another application</button></div>}
         {error&&<p ref={feedbackRef} role="alert" className="sm:col-span-2 rounded-lg bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}
-        {busy&&<div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
-          <div className="flex items-center justify-between gap-3 text-sm">
-            <p className="font-medium text-academy-deep" role="status" aria-live="polite">{submitStage}</p>
-            <span className="shrink-0 font-semibold tabular-nums text-amber-800">{submitProgress}%</span>
-          </div>
-          <div
-            className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-200"
-            role="progressbar"
-            aria-label="Application submission progress"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={submitProgress}
-          >
-            <div className="application-progress-fill h-full rounded-full transition-[width] duration-300 ease-out" style={{ width: `${submitProgress}%` }}/>
-          </div>
-          <p className="mt-2 text-xs text-slate-500">Documents upload together to save time. Keep this page open until submission finishes.</p>
-        </div>}
         <div className="sm:col-span-2"><p className="mb-1 text-xs font-bold uppercase tracking-wider text-amber-700">Particulars of the pupil / Taarifa ya mwanafunzi</p><div className="gold-line"/></div>
         <div className="sm:col-span-2"><p className="text-sm font-bold text-academy-deep">1. All about a child / Kuhusu mtoto</p></div>
         <label className="text-xs font-semibold text-slate-700">Tarehe ya kujaza fomu hii / Date to fill in this form *<input required name="formDate" type="date" defaultValue={new Date().toISOString().slice(0,10)} className="form-field mt-2"/></label>
@@ -645,6 +628,23 @@ function ApplicationForm({ user }) {
         <label className="text-xs font-semibold text-slate-700 sm:col-span-2">Anapoishi / Address<input name="otherContactAddress" className="form-field mt-2"/></label>
         <label className="text-xs font-semibold text-slate-700">NIDA – number / NIDA number<input name="otherContactNida" className="form-field mt-2"/></label>
         <label className="text-xs font-semibold text-slate-700">Email address / Barua pepe<input name="guardianEmail" type="email" autoComplete="email" defaultValue={user.email || ''} className="form-field mt-2"/></label>
+        {busy&&<div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <div className="flex items-center justify-between gap-3 text-sm">
+            <p className="font-medium text-academy-deep" role="status" aria-live="polite">{submitStage}</p>
+            <span className="shrink-0 font-semibold tabular-nums text-amber-800">{submitProgress}%</span>
+          </div>
+          <div
+            className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-200"
+            role="progressbar"
+            aria-label="Application submission progress"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={submitProgress}
+          >
+            <div className="application-progress-fill h-full rounded-full transition-[width] duration-300 ease-out" style={{ width: `${submitProgress}%` }}/>
+          </div>
+          <p className="mt-2 text-xs text-slate-500">Documents upload together to save time. Keep this page open until submission finishes.</p>
+        </div>}
         <div className="sm:col-span-2"><button type="submit" disabled={busy} className="inline-flex items-center gap-2 rounded-full bg-academy-deep px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-academy-navy disabled:cursor-not-allowed disabled:opacity-60">{busy?submitStage:'Submit Application'} <ArrowRight size={16}/></button><p className="mt-3 text-xs leading-5 text-slate-500">Provide at least one phone number for a parent or another contact. Applications are securely stored; keep your reference number.</p></div>
       </form>
     </div></div></section>
