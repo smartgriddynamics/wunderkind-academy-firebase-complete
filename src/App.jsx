@@ -1,7 +1,7 @@
 import { auth, db, storage, DOWNLOAD_STUDENT_ZIP_URL } from './firebase'
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from 'firebase/auth'
 import { collection, addDoc, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, query, where, serverTimestamp } from 'firebase/firestore'
-import { deleteObject, getBlob, ref as storageRef, uploadBytes } from 'firebase/storage'
+import { deleteObject, getBlob, ref as storageRef, uploadBytesResumable } from 'firebase/storage'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -10,7 +10,7 @@ import {
   MapPin, Phone, Mail, Clock, CheckCircle2, ChevronDown, Lightbulb,
   HeartHandshake, Music, Trophy, Code2, Facebook, Instagram, Youtube,
   ClipboardList, Search, LogOut, Check, Ban, Eye, LayoutDashboard,
-  UserRound, CalendarDays, FileText, AlertCircle, ExternalLink, Download, Camera, Upload
+  UserRound, CalendarDays, FileText, AlertCircle, ExternalLink, Download, Camera, Upload, EyeOff
 } from 'lucide-react'
 
 const siteBase = import.meta.env.BASE_URL
@@ -409,6 +409,7 @@ function ApplicationForm({ user }) {
   const [error, setError] = useState('')
   const [busy,setBusy] = useState(false)
   const [submitStage,setSubmitStage] = useState('')
+  const [submitProgress,setSubmitProgress] = useState(0)
   const feedbackRef = useRef(null)
   const [passportFile, setPassportFile] = useState(null)
   const [birthCertificateFrontFile, setBirthCertificateFrontFile] = useState(null)
@@ -464,7 +465,19 @@ function ApplicationForm({ user }) {
     const applicationId = makeId()
     mother.passportPhoto = `applicationDocuments/${user.uid}/${applicationId}/mother-passport`
     father.passportPhoto = `applicationDocuments/${user.uid}/${applicationId}/father-passport`
-    const studentName = value('studentName')
+    const studentName = [
+      value('studentFirstName'),
+      value('studentMiddleName'),
+      value('studentSurname'),
+    ].filter(Boolean).join(' ')
+    if (!value('studentFirstName') || !value('studentSurname')) {
+      setError('Enter the student’s first name and surname.')
+      return
+    }
+    if (studentName.length > 150) {
+      setError('The student’s full name must be 150 characters or fewer.')
+      return
+    }
     const application = {
       id: applicationId,
       ownerUid: user.uid,
@@ -500,24 +513,45 @@ function ApplicationForm({ user }) {
       guardianEmail: value('guardianEmail').toLowerCase(),
     }
     setBusy(true)
-    setSubmitStage('Uploading documents…')
+    setSubmitProgress(1)
+    setSubmitStage('Preparing document uploads…')
     const uploadedPaths = []
     try {
-      for (const [file, documentType] of [
+      const uploads = [
         [passportFile, 'passport'],
         [birthCertificateFrontFile, 'birth-certificate-front'],
         [birthCertificateBackFile, 'birth-certificate-back'],
         [motherPassportPhoto, 'mother-passport'],
         [fatherPassportPhoto, 'father-passport'],
-      ]) {
-        if (!file) continue
+      ]
+      const totalBytes = uploads.reduce((total, [file]) => total + file.size, 0)
+      const fileSizes = new Map(uploads.map(([file]) => [file, file.size]))
+      const transferredBytes = new Map(uploads.map(([file]) => [file, 0]))
+      const results = await Promise.allSettled(uploads.map(([file, documentType]) => new Promise((resolve, reject) => {
         const path = `applicationDocuments/${user.uid}/${applicationId}/${documentType}`
-        await uploadBytes(storageRef(storage, path), file, { contentType: file.type })
-        uploadedPaths.push(path)
-      }
+        const task = uploadBytesResumable(storageRef(storage, path), file, { contentType: file.type })
+        task.on('state_changed', snapshot => {
+          transferredBytes.set(file, snapshot.bytesTransferred)
+          const bytesUploaded = [...transferredBytes.values()].reduce((total, bytes) => total + bytes, 0)
+          const completedFiles = [...transferredBytes].filter(([candidate, bytes]) => bytes === fileSizes.get(candidate)).length
+          const uploadProgress = totalBytes > 0 ? Math.floor(bytesUploaded / totalBytes * 95) : 95
+          setSubmitProgress(Math.max(1, Math.min(95, uploadProgress)))
+          setSubmitStage(`Uploading documents (${completedFiles} of ${uploads.length} complete)…`)
+        }, reject, () => {
+          uploadedPaths.push(path)
+          resolve()
+        })
+      })))
+      const failedUpload = results.find(result => result.status === 'rejected')
+      if (failedUpload) throw failedUpload.reason
+
+      setSubmitProgress(98)
       setSubmitStage('Saving application…')
       await setDoc(doc(db, 'applications', applicationId), { ...application, submittedAt: serverTimestamp() })
+      setSubmitProgress(100)
+      setSubmitStage('Application submitted successfully')
       setSubmitted(application)
+      await new Promise(resolve => window.setTimeout(resolve, 700))
     } catch(err) {
       const cleanupResults = await Promise.allSettled(uploadedPaths.map(path => deleteObject(storageRef(storage, path))))
       const cleanupWarning = cleanupResults.some(result => result.status === 'rejected')
@@ -528,10 +562,12 @@ function ApplicationForm({ user }) {
         : ''
       setError(`Unable to submit application: ${err.message}${uploadSetupHint}${cleanupWarning}`)
       setBusy(false)
+      setSubmitProgress(0)
       setSubmitStage('')
       return
     }
     setBusy(false)
+    setSubmitProgress(0)
     setSubmitStage('')
     form.reset()
     setPassportFile(null)
@@ -547,11 +583,31 @@ function ApplicationForm({ user }) {
       <form onSubmit={handleSubmit} className="grid content-start gap-4 sm:grid-cols-2">
         {submitted&&<div ref={feedbackRef} role="status" aria-live="polite" className="sm:col-span-2 rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-900"><div className="flex items-center gap-2 font-semibold text-emerald-800"><CheckCircle2 size={20}/> Application submitted successfully</div><p className="mt-2 text-sm leading-6">Reference: <strong>{submitted.id}</strong><br/>Student: {submitted.studentName}<br/>Status: Pending review. The admissions team will review your application.</p><button type="button" onClick={()=>setSubmitted(null)} className="mt-3 text-sm font-semibold text-emerald-800 underline">Submit another application</button></div>}
         {error&&<p ref={feedbackRef} role="alert" className="sm:col-span-2 rounded-lg bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}
-        {busy&&<p className="sm:col-span-2 text-sm font-medium text-academy-deep" role="status" aria-live="polite">{submitStage}</p>}
+        {busy&&<div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <div className="flex items-center justify-between gap-3 text-sm">
+            <p className="font-medium text-academy-deep" role="status" aria-live="polite">{submitStage}</p>
+            <span className="shrink-0 font-semibold tabular-nums text-amber-800">{submitProgress}%</span>
+          </div>
+          <div
+            className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-200"
+            role="progressbar"
+            aria-label="Application submission progress"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={submitProgress}
+          >
+            <div className="h-full rounded-full bg-amber-600 transition-[width] duration-300 ease-out" style={{ width: `${submitProgress}%` }}/>
+          </div>
+          <p className="mt-2 text-xs text-slate-500">Documents upload together to save time. Keep this page open until submission finishes.</p>
+        </div>}
         <div className="sm:col-span-2"><p className="mb-1 text-xs font-bold uppercase tracking-wider text-amber-700">Particulars of the pupil / Taarifa ya mwanafunzi</p><div className="gold-line"/></div>
         <div className="sm:col-span-2"><p className="text-sm font-bold text-academy-deep">1. All about a child / Kuhusu mtoto</p></div>
         <label className="text-xs font-semibold text-slate-700">Tarehe ya kujaza fomu hii / Date to fill in this form *<input required name="formDate" type="date" defaultValue={new Date().toISOString().slice(0,10)} className="form-field mt-2"/></label>
-        <label className="text-xs font-semibold text-slate-700">Jina kamili ya mtoto / Full name of child *<input required name="studentName" className="form-field mt-2" autoComplete="name" placeholder="Child’s full legal name"/></label>
+        <div className="grid gap-4 sm:col-span-2 sm:grid-cols-3">
+          <label className="text-xs font-semibold text-slate-700">First name / Jina la kwanza *<input required name="studentFirstName" className="form-field mt-2" autoComplete="given-name" placeholder="First name"/></label>
+          <label className="text-xs font-semibold text-slate-700">Middle name / Jina la kati<input name="studentMiddleName" className="form-field mt-2" autoComplete="additional-name" placeholder="Middle name (optional)"/></label>
+          <label className="text-xs font-semibold text-slate-700">Surname / Jina la ukoo *<input required name="studentSurname" className="form-field mt-2" autoComplete="family-name" placeholder="Surname"/></label>
+        </div>
         <label className="text-xs font-semibold text-slate-700">Jina la nyumbani / Nickname<input name="nickname" className="form-field mt-2"/></label>
         <label className="text-xs font-semibold text-slate-700">Jinsia / Sex *<select required name="gender" defaultValue="" className="form-field mt-2"><option value="" disabled>Select / Chagua</option><option>Female / Mwanamke</option><option>Male / Mwanaume</option></select></label>
         <label className="text-xs font-semibold text-slate-700">Tarehe ya kuzaliwa / Date of birth *<input required name="dateOfBirth" type="date" max={new Date().toISOString().slice(0,10)} className="form-field mt-2"/></label>
@@ -674,6 +730,8 @@ function ApplicantPortal({ showApplicationForm = false }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -766,8 +824,8 @@ function ApplicantPortal({ showApplicationForm = false }) {
         <p className="mt-3 text-sm leading-6 text-slate-600">{registering?'Create an account before completing an application. Use the same account later to check its status.':'Sign in to submit an application or check your child’s application status.'}</p>
         <form onSubmit={submitCredentials} className="mt-7 space-y-4">
           <label className="block text-xs font-semibold text-slate-700">Email address<input required type="email" autoComplete="email" value={email} onChange={event=>setEmail(event.target.value)} className="form-field mt-2" placeholder="you@example.com"/></label>
-          <label className="block text-xs font-semibold text-slate-700">Password<input required type="password" minLength={6} autoComplete={registering?'new-password':'current-password'} value={password} onChange={event=>setPassword(event.target.value)} className="form-field mt-2" placeholder="At least 6 characters"/></label>
-          {registering&&<label className="block text-xs font-semibold text-slate-700">Confirm password<input required type="password" minLength={6} autoComplete="new-password" value={confirmPassword} onChange={event=>setConfirmPassword(event.target.value)} className="form-field mt-2" placeholder="Enter the password again"/></label>}
+          <label className="block text-xs font-semibold text-slate-700">Password<span className="relative mt-2 block"><input required type={showPassword?'text':'password'} minLength={6} autoComplete={registering?'new-password':'current-password'} value={password} onChange={event=>setPassword(event.target.value)} className="form-field pr-12" placeholder="At least 6 characters"/><button type="button" onClick={()=>setShowPassword(visible=>!visible)} className="absolute inset-y-0 right-2 inline-flex w-10 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-academy-deep" aria-label={showPassword?'Hide password':'Show password'} aria-pressed={showPassword}>{showPassword?<EyeOff size={18}/>:<Eye size={18}/>}</button></span></label>
+          {registering&&<label className="block text-xs font-semibold text-slate-700">Confirm password<span className="relative mt-2 block"><input required type={showConfirmPassword?'text':'password'} minLength={6} autoComplete="new-password" value={confirmPassword} onChange={event=>setConfirmPassword(event.target.value)} className="form-field pr-12" placeholder="Enter the password again"/><button type="button" onClick={()=>setShowConfirmPassword(visible=>!visible)} className="absolute inset-y-0 right-2 inline-flex w-10 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-academy-deep" aria-label={showConfirmPassword?'Hide confirm password':'Show confirm password'} aria-pressed={showConfirmPassword}>{showConfirmPassword?<EyeOff size={18}/>:<Eye size={18}/>}</button></span></label>}
           {error&&<p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}
           {notice&&<p role="status" className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">{notice}</p>}
           <button disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-full bg-academy-deep px-5 py-3.5 text-sm font-semibold text-white hover:bg-academy-navy disabled:opacity-60">{busy?'Please wait…':registering?'Create account':'Sign in'} <ArrowRight size={16}/></button>
@@ -818,6 +876,7 @@ function Footer({ applyPage = false }) {
 function AdminLogin() {
   const [username,setUsername]=useState('')
   const [password,setPassword]=useState('')
+  const [showPassword,setShowPassword]=useState(false)
   const [error,setError]=useState('')
   const [busy,setBusy]=useState(false)
   async function submit(e) {
@@ -826,7 +885,7 @@ function AdminLogin() {
     catch(err) {setError('Sign in failed. Check your email, password, and administrator permissions.')}
     finally {setBusy(false)}
   }
-  return <div className="min-h-screen bg-academy-light px-4 py-12"><div className="mx-auto max-w-md"><a href={siteBase} className="mb-8 inline-flex items-center gap-3"><SchoolMark className="h-20 w-20 object-contain" /><span><span className="block font-serif text-xl text-academy-deep">Wunderkind Academy</span><span className="text-xs text-slate-500">Admissions administration</span></span></a><div className="rounded-3xl bg-white p-8 shadow-soft sm:p-10"><div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-700"><ShieldCheck size={28}/></div><h1 className="heading mt-5 text-3xl text-academy-deep">Admin sign in</h1><p className="mt-3 text-sm leading-6 text-slate-600">Sign in using your authorized school administrator account.</p><form onSubmit={submit} className="mt-7 space-y-4"><label className="block text-xs font-semibold text-slate-700">Email<input type="email" required value={username} onChange={e=>setUsername(e.target.value)} className="form-field mt-2" autoComplete="username" placeholder="admin@school.org"/></label><label className="block text-xs font-semibold text-slate-700">Password<input required value={password} onChange={e=>setPassword(e.target.value)} type="password" className="form-field mt-2" autoComplete="current-password" placeholder="Password"/></label>{error&&<p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}<button className="flex w-full items-center justify-center gap-2 rounded-full bg-academy-deep px-5 py-3.5 text-sm font-semibold text-white hover:bg-academy-navy">Sign in <ArrowRight size={16}/></button></form><a href={siteBase} className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-academy-deep"><ArrowRight className="rotate-180" size={15}/> Return to school website</a></div></div></div>
+  return <div className="min-h-screen bg-academy-light px-4 py-12"><div className="mx-auto max-w-md"><a href={siteBase} className="mb-8 inline-flex items-center gap-3"><SchoolMark className="h-20 w-20 object-contain" /><span><span className="block font-serif text-xl text-academy-deep">Wunderkind Academy</span><span className="text-xs text-slate-500">Admissions administration</span></span></a><div className="rounded-3xl bg-white p-8 shadow-soft sm:p-10"><div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-700"><ShieldCheck size={28}/></div><h1 className="heading mt-5 text-3xl text-academy-deep">Admin sign in</h1><p className="mt-3 text-sm leading-6 text-slate-600">Sign in using your authorized school administrator account.</p><form onSubmit={submit} className="mt-7 space-y-4"><label className="block text-xs font-semibold text-slate-700">Email<input type="email" required value={username} onChange={e=>setUsername(e.target.value)} className="form-field mt-2" autoComplete="username" placeholder="admin@school.org"/></label><label className="block text-xs font-semibold text-slate-700">Password<span className="relative mt-2 block"><input required value={password} onChange={e=>setPassword(e.target.value)} type={showPassword?'text':'password'} className="form-field pr-12" autoComplete="current-password" placeholder="Password"/><button type="button" onClick={()=>setShowPassword(visible=>!visible)} className="absolute inset-y-0 right-2 inline-flex w-10 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-academy-deep" aria-label={showPassword?'Hide password':'Show password'} aria-pressed={showPassword}>{showPassword?<EyeOff size={18}/>:<Eye size={18}/>}</button></span></label>{error&&<p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}<button className="flex w-full items-center justify-center gap-2 rounded-full bg-academy-deep px-5 py-3.5 text-sm font-semibold text-white hover:bg-academy-navy">Sign in <ArrowRight size={16}/></button></form><a href={siteBase} className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-academy-deep"><ArrowRight className="rotate-180" size={15}/> Return to school website</a></div></div></div>
 }
 
 function PaymentControlNumberEditor({ application }) {
