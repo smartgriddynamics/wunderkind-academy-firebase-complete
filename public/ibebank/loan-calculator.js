@@ -5,10 +5,10 @@ function roundMoney(value) {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
-export function calculateFlatLoan(amount, durationDays, monthlyRatePercent) {
+export function calculateFlatLoan(amount, durationDays, annualRatePercent) {
   const principal = Number(amount);
   const duration = Number(durationDays);
-  const ratePercent = Number(monthlyRatePercent);
+  const ratePercent = Number(annualRatePercent);
 
   if (!Number.isFinite(principal) || principal <= 0 || principal > MAX_LOAN_AMOUNT) {
     throw new Error('Loan amount must be greater than zero.');
@@ -17,10 +17,10 @@ export function calculateFlatLoan(amount, durationDays, monthlyRatePercent) {
     throw new Error('Loan duration must be greater than zero.');
   }
   if (!Number.isFinite(ratePercent) || ratePercent < 0) {
-    throw new Error('Monthly interest rate must be zero or greater.');
+    throw new Error('Annual interest rate must be zero or greater.');
   }
 
-  const interestRate = (ratePercent / 100) * (duration / 30);
+  const interestRate = (ratePercent / 100) * (duration / 365);
   const interestAmount = roundMoney(principal * interestRate);
   return {
     interestRate,
