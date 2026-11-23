@@ -121,9 +121,30 @@
     .filter-bar select,.filter-bar input{padding:8px 12px;border:2px solid var(--gray-light);border-radius:8px;font-size:0.85rem;}
     .filter-bar select:focus,.filter-bar input:focus{outline:none;border-color:var(--primary);}
     .menu-toggle{display:none;position:fixed;top:20px;left:20px;z-index:200;width:42px;height:42px;border-radius:12px;background:var(--primary);color:white;border:none;cursor:pointer;font-size:1.2rem;}
+    .calculator-card{background:#1e1e2e;color:white;border-radius:18px;padding:24px;box-shadow:0 8px 24px rgba(15,23,42,.16);margin-bottom:24px;}
+    .calculator-card h2,.calculator-card h3{color:white;}
+    .calculator-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;}
+    .calculator-card .form-group{margin-bottom:0;}
+    .calculator-card .form-label{color:#e2e8f0;}
+    .calculator-card .form-input{background:#29293b;border:1px solid #44445a;color:white;}
+    .calculator-card .form-input:focus{border-color:#3b82f6;}
+    .calculator-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px;}
+    .calculator-actions .btn-secondary{background:#3c3c50;color:white;}
+    .calculator-results{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-top:22px;}
+    .calculator-result{background:#29293b;border:1px solid #3c3c50;border-radius:12px;padding:16px;}
+    .calculator-result span{display:block;color:#cbd5e1;font-size:.82rem;margin-bottom:8px;}
+    .calculator-result strong{color:#ef4444;font-size:1.3rem;overflow-wrap:anywhere;}
+    .calculator-error{color:#fecaca;margin-top:14px;min-height:1.2em;}
+    [hidden]{display:none!important;}
+    .amortization-header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px;}
+    .amortization-table{background:white;border-radius:18px;padding:20px;overflow-x:auto;}
+    .amortization-table table{min-width:620px;}
+    .amortization-table td,.amortization-table th{text-align:right;}
+    .amortization-table td:first-child,.amortization-table th:first-child{text-align:left;}
+    .calculator-note{color:#cbd5e1;font-size:.85rem;margin-top:12px;}
     @media(max-width:1024px){.dashboard-grid{grid-template-columns:1fr;}}
     @media(max-width:768px){.sidebar{transform:translateX(-100%);}.sidebar.mobile-open{transform:translateX(0);}.main-content{margin-left:0;}.menu-toggle{display:flex;align-items:center;justify-content:center;}.stats-grid{grid-template-columns:1fr 1fr;}.loan-summary{grid-template-columns:repeat(2,1fr);}}
-    @media(max-width:480px){.stats-grid{grid-template-columns:1fr;}}
+    @media(max-width:480px){.stats-grid{grid-template-columns:1fr;}.calculator-grid{grid-template-columns:1fr;}.calculator-card{padding:18px;}.calculator-result strong{font-size:1.1rem;}}
   </style>
 </head>
 <body>
@@ -140,6 +161,7 @@
         <button class="nav-item" data-section="agent-balance-requests"><i class="fas fa-money-bill-wave"></i> Agent Requests<span class="nav-badge" id="agentBalanceRequestCount">0</span></button>
         <button class="nav-item" data-section="requests"><i class="fas fa-clock"></i> Requests<span class="nav-badge" id="requestCount">0</span></button>
         <button class="nav-item" data-section="loans"><i class="fas fa-hand-holding-usd"></i> Loans<span class="nav-badge" id="loanRequestCount">0</span></button>
+        <button class="nav-item" data-section="loan-calculator"><i class="fas fa-calculator"></i> Loan Calculator</button>
       </div>
       <div class="nav-section"><div class="nav-section-label">Reports</div><button class="nav-item" data-section="analytics"><i class="fas fa-chart-line"></i> Analytics</button><button class="nav-item" data-section="transactions"><i class="fas fa-list-alt"></i> Transactions</button></div>
       <div class="nav-section"><div class="nav-section-label">Settings</div><button class="nav-item" data-section="settings"><i class="fas fa-cog"></i> Settings</button></div>
@@ -182,6 +204,42 @@
     
     <!-- LOANS -->
     <div class="content-section" id="loans-section"><div class="loan-summary"><div class="loan-stat"><div class="value" id="activeLoansCount">0</div><div class="label">Active</div></div><div class="loan-stat"><div class="value" id="pendingLoansCount">0</div><div class="label">Pending</div></div><div class="loan-stat"><div class="value" id="overdueLoansCount">0</div><div class="label">Overdue</div></div><div class="loan-stat"><div class="value" id="totalLoanAmount">TSh 0</div><div class="label">Total Lent</div></div></div><div class="table-card"><div class="table-header"><h3>Loan Requests (10%/month)</h3></div><div id="loanRequestsList" class="requests-list"></div></div><div class="table-card" style="margin-top:20px;"><div class="table-header"><h3>Active Loans</h3></div><table><thead><tr><th>User</th><th>Amount</th><th>Remaining</th><th>Due Date</th><th>Status</th><th>Actions</th></tr></thead><tbody id="activeLoansBody"></tbody></table></div></div>
+
+    <!-- LOAN CALCULATOR -->
+    <div class="content-section" id="loan-calculator-section">
+      <div id="loanCalculatorFormView">
+        <div class="calculator-card">
+          <h2><i class="fas fa-calculator"></i> Loan Calculator</h2>
+          <p class="calculator-note">Estimate a fixed-rate monthly repayment and view the full principal and interest schedule.</p>
+          <form id="loanCalculatorForm" novalidate>
+            <div class="calculator-grid" style="margin-top:20px;">
+              <div class="form-group"><label class="form-label" for="calculatorAmount">Loan Amount (TSh)</label><input class="form-input" id="calculatorAmount" type="number" min="0.01" step="0.01" placeholder="e.g. 2,000,000" required></div>
+              <div class="form-group"><label class="form-label" for="calculatorRate">Interest Rate (% per year)</label><input class="form-input" id="calculatorRate" type="number" min="0" step="0.01" placeholder="e.g. 20" required></div>
+              <div class="form-group"><label class="form-label" for="calculatorYears">Loan Term (Years)</label><input class="form-input" id="calculatorYears" type="number" min="0" max="100" step="1" value="0" required></div>
+              <div class="form-group"><label class="form-label" for="calculatorMonths">Loan Term (Months)</label><input class="form-input" id="calculatorMonths" type="number" min="0" step="1" value="0" required></div>
+              <div class="form-group"><label class="form-label" for="calculatorExtra">Extra Payment Per Month (TSh)</label><input class="form-input" id="calculatorExtra" type="number" min="0" step="0.01" value="0"></div>
+            </div>
+            <div class="calculator-actions">
+              <button class="btn btn-primary" type="submit"><i class="fas fa-equals"></i> Calculate</button>
+              <button class="btn btn-secondary" type="button" id="showAmortizationBtn"><i class="fas fa-table"></i> Amortization</button>
+              <button class="btn btn-secondary" type="reset"><i class="fas fa-undo"></i> Reset</button>
+            </div>
+            <p class="calculator-error" id="calculatorError" role="alert" aria-live="polite"></p>
+          </form>
+          <div class="calculator-results" id="calculatorResults" aria-live="polite" hidden>
+            <div class="calculator-result"><span>Monthly Payment</span><strong id="monthlyPaymentResult"></strong></div>
+            <div class="calculator-result"><span>Total Payment</span><strong id="totalPaymentResult"></strong></div>
+            <div class="calculator-result"><span>Total Interest</span><strong id="totalInterestResult"></strong></div>
+            <div class="calculator-result"><span>Annual Payment</span><strong id="annualPaymentResult"></strong></div>
+            <div class="calculator-result"><span>Mortgage Constant</span><strong id="mortgageConstantResult"></strong></div>
+          </div>
+        </div>
+      </div>
+      <div id="loanAmortizationView" hidden>
+        <div class="amortization-header"><div><h2>Amortization Schedule</h2><p id="amortizationSummary" style="color:var(--gray);margin-top:6px;"></p></div><button class="btn btn-primary" type="button" id="backToCalculatorBtn"><i class="fas fa-arrow-left"></i> Back to Calculator</button></div>
+        <div class="amortization-table"><table><thead><tr><th>No</th><th>Amount</th><th>Interest</th><th>Principal</th><th>Balance</th></tr></thead><tbody id="amortizationRows"></tbody></table></div>
+      </div>
+    </div>
     
     <!-- ANALYTICS -->
     <div class="content-section" id="analytics-section">
@@ -259,6 +317,7 @@
   <div class="modal-overlay" id="agentDepositModal"><div class="modal"><div class="modal-header"><h3 class="modal-title">Deposit to Agent</h3><button class="modal-close" onclick="closeModal('agentDepositModal')">&times;</button></div><div class="form-group"><label class="form-label">Agent</label><input type="text" id="agentDepositUser" class="form-input" readonly></div><div class="form-group"><label class="form-label">Amount</label><input type="number" id="agentDepositAmount" class="form-input"></div><div class="modal-actions"><button class="btn btn-primary" id="confirmAgentDepositBtn">Deposit</button><button class="btn" style="background:#f3f4f6;" onclick="closeModal('agentDepositModal')">Cancel</button></div></div></div>
 
 <script type="module">
+import{calculateLoan}from"./loan-calculator.js";
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import{getAuth,signOut,onAuthStateChanged,createUserWithEmailAndPassword}from"https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import{getFirestore,collection,doc,setDoc,getDocs,updateDoc,deleteDoc,onSnapshot,query,orderBy,where,getDoc}from"https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -283,6 +342,47 @@ onAuthStateChanged(auth,async(user)=>{if(!user){window.location.replace('index.h
 document.querySelectorAll('.nav-item').forEach(item=>{item.addEventListener('click',()=>{document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));item.classList.add('active');document.querySelectorAll('.content-section').forEach(s=>s.classList.remove('active'));document.getElementById(`${item.dataset.section}-section`).classList.add('active');document.getElementById('pageTitle').textContent=item.textContent.replace(/\d+/,'').trim();if(window.innerWidth<=768)document.getElementById('sidebar').classList.remove('mobile-open');});});
 document.getElementById('menuToggle').addEventListener('click',()=>document.getElementById('sidebar').classList.toggle('mobile-open'));
 document.getElementById('logoutBtn').addEventListener('click',async()=>{await signOut(auth);window.location.replace('index.html');});
+const calculatorMoney=(value)=>'TSh '+new Intl.NumberFormat('en-TZ',{minimumFractionDigits:2,maximumFractionDigits:2}).format(value);
+let calculatorResult=null;
+function runLoanCalculation(){
+  const error=document.getElementById('calculatorError');
+  error.textContent='';
+  try{
+    calculatorResult=calculateLoan({
+      amount:document.getElementById('calculatorAmount').value,
+      annualRate:document.getElementById('calculatorRate').value,
+      years:document.getElementById('calculatorYears').value,
+      months:document.getElementById('calculatorMonths').value,
+      extraPayment:document.getElementById('calculatorExtra').value||0
+    });
+    document.getElementById('monthlyPaymentResult').textContent=calculatorMoney(calculatorResult.monthlyPayment);
+    document.getElementById('totalPaymentResult').textContent=calculatorMoney(calculatorResult.totalPayment);
+    document.getElementById('totalInterestResult').textContent=calculatorMoney(calculatorResult.totalInterest);
+    document.getElementById('annualPaymentResult').textContent=calculatorMoney(calculatorResult.annualPayment);
+    document.getElementById('mortgageConstantResult').textContent=calculatorResult.mortgageConstant.toFixed(2)+'%';
+    document.getElementById('calculatorResults').hidden=false;
+    return true;
+  }catch(errorValue){
+    calculatorResult=null;
+    document.getElementById('calculatorResults').hidden=true;
+    error.textContent=errorValue.message;
+    return false;
+  }
+}
+document.getElementById('loanCalculatorForm').addEventListener('submit',(event)=>{event.preventDefault();runLoanCalculation();});
+document.getElementById('loanCalculatorForm').addEventListener('reset',()=>{calculatorResult=null;document.getElementById('calculatorError').textContent='';document.getElementById('calculatorResults').hidden=true;});
+document.getElementById('showAmortizationBtn').addEventListener('click',()=>{
+  if(!runLoanCalculation())return;
+  const rows=document.getElementById('amortizationRows');
+  rows.innerHTML=calculatorResult.schedule.map(row=>`<tr><td>${row.number}</td><td>${calculatorMoney(row.amount)}</td><td>${calculatorMoney(row.interest)}</td><td>${calculatorMoney(row.principal)}</td><td>${calculatorMoney(row.balance)}</td></tr>`).join('');
+  document.getElementById('amortizationSummary').textContent=`${calculatorResult.schedule.length} monthly payments · Total paid ${calculatorMoney(calculatorResult.totalPayment)} · Total interest ${calculatorMoney(calculatorResult.totalInterest)}. Amount includes any extra payment.`;
+  document.getElementById('loanCalculatorFormView').hidden=true;
+  document.getElementById('loanAmortizationView').hidden=false;
+});
+document.getElementById('backToCalculatorBtn').addEventListener('click',()=>{
+  document.getElementById('loanAmortizationView').hidden=true;
+  document.getElementById('loanCalculatorFormView').hidden=false;
+});
 async function loadSettings(){const s=await getDoc(doc(db,"settings","interest"));if(s.exists()){const d=s.data();document.getElementById('loanInterestRate').value=d.loanRate||10;document.getElementById('lowBalanceThreshold').value=d.lowBalanceThreshold||1000000;}}
 document.getElementById('saveSettingsBtn').addEventListener('click',async()=>{const lr=parseFloat(document.getElementById('loanInterestRate').value)||10,th=parseFloat(document.getElementById('lowBalanceThreshold').value)||1000000;await updateDoc(doc(db,"settings","interest"),{loanRate:lr,lowBalanceThreshold:th});document.getElementById('loanInterestDisplay').textContent=lr+'%';alert('Saved!');});
 

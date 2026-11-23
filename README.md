@@ -34,7 +34,7 @@ Firestore creates a collection when the first legitimate document is written; em
 
 The site does not use generic `users`, `settings`, `notifications`, or `activityLogs` collections. It does not generate fake applicants, messages, news, or events to make Firestore look populated. There are no composite indexes currently required; Firestore's default single-field indexes cover the site's queries.
 
-The separate static `public/ibebank/` mini-app uses a different Firebase project (`minibank-b76d6`) and its own finance-related collections. The Academy setup script intentionally does not touch that project or its data.
+The separate static `public/ibebank/` mini-app uses a different Firebase project (`minibank-b76d6`) and its own finance-related collections. Its admin dashboard includes a loan calculator with an amortization schedule; calculations run in the browser and do not write to Firestore. The Academy setup script intentionally does not touch that project or its data.
 
 To use Firebase Hosting instead, configure Firebase CLI and run `npm run build` followed by `firebase deploy --only hosting`. Firebase Hosting serves the SPA and `/admin` route.
 
