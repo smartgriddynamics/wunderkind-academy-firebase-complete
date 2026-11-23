@@ -1,6 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { calculateLoan } from '../public/ibebank/loan-calculator.js';
+import { calculateFlatLoan, calculateLoan } from '../public/ibebank/loan-calculator.js';
+
+test('calculates client loan interest from the configured monthly rate', () => {
+  const threeMonthLoan = calculateFlatLoan(100_000, 90, 7.5);
+  assert.ok(Math.abs(threeMonthLoan.interestRate - 0.225) < 1e-12);
+  assert.equal(threeMonthLoan.interestAmount, 22_500);
+  assert.equal(threeMonthLoan.totalRepayment, 122_500);
+  assert.deepEqual(calculateFlatLoan(100_000, 60, 0), {
+    interestRate: 0,
+    interestAmount: 0,
+    totalRepayment: 100_000,
+  });
+});
 
 test('calculates the requested 20-year, 20% loan and first payment accurately', () => {
   const result = calculateLoan({
