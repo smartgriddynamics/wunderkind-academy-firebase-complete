@@ -1,4 +1,4 @@
-const MAX_LOAN_AMOUNT = Number.MAX_SAFE_INTEGER / 100;
+ const MAX_LOAN_AMOUNT = Number.MAX_SAFE_INTEGER / 100;
 const MAX_TERM_MONTHS = 1200;
 
 function roundMoney(value) {
